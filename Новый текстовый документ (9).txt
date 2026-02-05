@@ -109,7 +109,7 @@ local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 30)
 Header.Position = UDim2.new(0, 0, 0, 10)
 Header.BackgroundTransparency = 1
-Header.Text = "t.me/scriptsabhub"
+Header.Text = "CapyLagger"
 Header.TextColor3 = GuiConfig.Colors.Accent
 Header.Font = Enum.Font.GothamBold
 Header.TextSize = 14
@@ -335,3 +335,4 @@ end)
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then updateDrag(input) end
 end)
+
