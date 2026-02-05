@@ -1,3 +1,8 @@
+--[[
+    CAPY LAGGER: WINTER ULTIMATE EDITION
+    Designed by: Werzz | Logic: CapyCore v3
+]]
+
 -- // SERVICES //
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -8,7 +13,7 @@ local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- // BLACKLIST & SETTINGS //
+-- // LOGIC CONFIGURATION //
 local blacklistedNames = {
     "PlaceCooldownFromChat", "AdminPanelService", "AdminPanel",
     "IntegrityCheckProcessor", "LocalizationTableAnalyticsSender",
@@ -56,252 +61,279 @@ local Settings = {
 local TargetRemote = nil
 local uuid = HttpService:GenerateGUID(false)
 
--- // UI LIBRARY //
+-- // UI ENGINE //
 local UI = {}
 
-function UI:Create(class, properties)
-    local instance = Instance.new(class)
-    for k, v in pairs(properties) do
-        instance[k] = v
+function UI:Create(class, props)
+    local obj = Instance.new(class)
+    for k, v in pairs(props) do
+        obj[k] = v
     end
-    return instance
+    return obj
 end
 
-function UI:Tween(instance, properties, duration, style)
-    TweenService:Create(instance, TweenInfo.new(duration or 0.3, style or Enum.EasingStyle.Quint), properties):Play()
+function UI:Tween(obj, props, time, style, dir)
+    TweenService:Create(obj, TweenInfo.new(time or 0.3, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out), props):Play()
 end
 
-function UI:Gradient(parent)
-    local gradient = UI:Create("UIGradient", {
-        Parent = parent,
-        Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 128)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 50, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 255))
-        })
-    })
-    
-    -- Анимация вращения градиента
+function UI:Rainbow(obj)
     task.spawn(function()
-        local rotation = 0
-        while gradient.Parent do
-            rotation = rotation + 1
-            if rotation > 360 then rotation = 0 end
-            gradient.Rotation = rotation
+        local t = 0
+        while obj.Parent do
+            t = t + 0.005
+            obj.Color = Color3.fromHSV(t % 1, 0.8, 1)
             RunService.RenderStepped:Wait()
         end
     end)
-    return gradient
 end
 
--- // MAIN GUI SETUP //
-if CoreGui:FindFirstChild("CapyLaggerUI") then CoreGui.CapyLaggerUI:Destroy() end
+-- // CLEANUP //
+if CoreGui:FindFirstChild("CapyLaggerUltimate") then CoreGui.CapyLaggerUltimate:Destroy() end
 
 local ScreenGui = UI:Create("ScreenGui", {
-    Name = "CapyLaggerUI",
+    Name = "CapyLaggerUltimate",
     Parent = CoreGui,
-    ResetOnSpawn = false
+    ResetOnSpawn = false,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 })
 
--- Main Container
-local MainFrame = UI:Create("Frame", {
+-- // MAIN FRAME //
+local Main = UI:Create("Frame", {
     Parent = ScreenGui,
-    Size = UDim2.new(0, 260, 0, 300),
-    Position = UDim2.new(0.5, -130, 0.4, 0),
-    BackgroundColor3 = Color3.fromRGB(15, 15, 20),
+    Size = UDim2.new(0, 0, 0, 0), -- Анимация старта (раскроется позже)
+    Position = UDim2.new(0.5, 0, 0.45, 0),
+    AnchorPoint = Vector2.new(0.5, 0.5),
+    BackgroundColor3 = Color3.fromRGB(12, 12, 18),
     BorderSizePixel = 0,
-    BackgroundTransparency = 0.05
+    ClipsDescendants = true
 })
-UI:Create("UICorner", {Parent = MainFrame, CornerRadius = UDim.new(0, 16)})
+UI:Create("UICorner", {Parent = Main, CornerRadius = UDim.new(0, 16)})
 
--- RGB Stroke (Border)
-local MainStroke = UI:Create("UIStroke", {
-    Parent = MainFrame,
+-- Gradient Stroke
+local Stroke = UI:Create("UIStroke", {
+    Parent = Main,
     Thickness = 2,
-    Transparency = 0
+    Transparency = 0,
+    Color = Color3.fromRGB(255, 255, 255)
 })
-UI:Gradient(MainStroke) -- Apply RGB
-
--- Top Bar
-local TopBar = UI:Create("Frame", {
-    Parent = MainFrame,
-    Size = UDim2.new(1, 0, 0, 40),
-    BackgroundTransparency = 1
-})
-local Title = UI:Create("TextLabel", {
-    Parent = TopBar,
-    Size = UDim2.new(1, 0, 1, 0),
-    Text = "CapyLagger",
-    Font = Enum.Font.GothamBold,
-    TextSize = 22,
-    TextColor3 = Color3.fromRGB(255, 255, 255),
-    BackgroundTransparency = 1
-})
--- Gradient Text
-local TitleGradient = UI:Create("UIGradient", {
-    Parent = Title,
+local StrokeGrad = UI:Create("UIGradient", {
+    Parent = Stroke,
     Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 150, 0)), -- Capybara Orange
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 220, 100))
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 0, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 255))
+    }),
+    Rotation = 45
+})
+-- Rotate Gradient Loop
+task.spawn(function()
+    while StrokeGrad.Parent do
+        StrokeGrad.Rotation = StrokeGrad.Rotation + 1
+        RunService.RenderStepped:Wait()
+    end
+end)
+
+-- // SNOW EFFECT ENGINE ❄️ //
+local SnowContainer = UI:Create("Frame", {
+    Parent = Main,
+    Size = UDim2.new(1, 0, 1, 0),
+    BackgroundTransparency = 1,
+    ZIndex = 1
+})
+
+local function SpawnSnow()
+    local flake = UI:Create("Frame", {
+        Parent = SnowContainer,
+        Size = UDim2.new(0, math.random(2, 5), 0, math.random(2, 5)),
+        Position = UDim2.new(math.random(), 0, -0.1, 0),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = math.random(3, 7) / 10
     })
+    UI:Create("UICorner", {Parent = flake, CornerRadius = UDim.new(1, 0)})
+    
+    local duration = math.random(20, 50) / 10
+    
+    local tween = TweenService:Create(flake, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+        Position = UDim2.new(flake.Position.X.Scale + (math.random(-2, 2)/10), 0, 1.1, 0),
+        Rotation = math.random(0, 360)
+    })
+    tween:Play()
+    tween.Completed:Connect(function() flake:Destroy() end)
+end
+
+-- Snow Loop
+task.spawn(function()
+    while Main.Parent do
+        if math.random(1, 3) == 1 then SpawnSnow() end
+        task.wait(0.1)
+    end
+end)
+
+-- // UI CONTENT //
+
+-- Title
+local Title = UI:Create("TextLabel", {
+    Parent = Main,
+    Text = "CAPY<font color='#00FFFF'>LAGGER</font>",
+    RichText = true,
+    Size = UDim2.new(1, 0, 0, 40),
+    Position = UDim2.new(0, 0, 0, 10),
+    BackgroundTransparency = 1,
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    Font = Enum.Font.GothamBlack,
+    TextSize = 20,
+    ZIndex = 2
 })
 
--- Content Area
-local Content = UI:Create("Frame", {
-    Parent = MainFrame,
-    Size = UDim2.new(1, -30, 1, -50),
-    Position = UDim2.new(0, 15, 0, 45),
-    BackgroundTransparency = 1
+-- Status Badge
+local StatusBadge = UI:Create("Frame", {
+    Parent = Main,
+    Size = UDim2.new(0, 220, 0, 26),
+    Position = UDim2.new(0.5, -110, 0, 50),
+    BackgroundColor3 = Color3.fromRGB(20, 20, 30),
+    ZIndex = 2
 })
-
--- Status Panel
-local StatusPanel = UI:Create("Frame", {
-    Parent = Content,
-    Size = UDim2.new(1, 0, 0, 35),
-    BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-})
-UI:Create("UICorner", {Parent = StatusPanel, CornerRadius = UDim.new(0, 8)})
+UI:Create("UICorner", {Parent = StatusBadge, CornerRadius = UDim.new(0, 6)})
+UI:Create("UIStroke", {Parent = StatusBadge, Color = Color3.fromRGB(40, 40, 50), Thickness = 1})
 
 local StatusDot = UI:Create("Frame", {
-    Parent = StatusPanel,
+    Parent = StatusBadge,
     Size = UDim2.new(0, 8, 0, 8),
-    Position = UDim2.new(0, 12, 0.5, -4),
-    BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    Position = UDim2.new(0, 10, 0.5, -4),
+    BackgroundColor3 = Color3.fromRGB(100, 100, 100),
+    ZIndex = 2
 })
 UI:Create("UICorner", {Parent = StatusDot, CornerRadius = UDim.new(1, 0)})
 
 local StatusText = UI:Create("TextLabel", {
-    Parent = StatusPanel,
+    Parent = StatusBadge,
+    Text = "Scanning...",
     Size = UDim2.new(1, -30, 1, 0),
-    Position = UDim2.new(0, 30, 0, 0),
-    Text = "Scanning Protocols...",
-    Font = Enum.Font.Gotham,
-    TextSize = 12,
-    TextColor3 = Color3.fromRGB(180, 180, 180),
+    Position = UDim2.new(0, 25, 0, 0),
     BackgroundTransparency = 1,
-    TextXAlignment = Enum.TextXAlignment.Left
+    TextColor3 = Color3.fromRGB(150, 150, 150),
+    Font = Enum.Font.Code,
+    TextSize = 11,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 2
 })
 
--- Big Button
-local ToggleBtn = UI:Create("TextButton", {
-    Parent = Content,
-    Size = UDim2.new(1, 0, 0, 80),
-    Position = UDim2.new(0, 0, 0, 50),
-    BackgroundColor3 = Color3.fromRGB(30, 30, 35),
+-- The BIG Button
+local MainButton = UI:Create("TextButton", {
+    Parent = Main,
+    Size = UDim2.new(0, 120, 0, 120),
+    Position = UDim2.new(0.5, -60, 0.5, -10),
+    BackgroundColor3 = Color3.fromRGB(25, 25, 35),
     Text = "",
-    AutoButtonColor = false
+    AutoButtonColor = false,
+    ZIndex = 2
 })
-UI:Create("UICorner", {Parent = ToggleBtn, CornerRadius = UDim.new(0, 12)})
-local BtnGradient = UI:Create("UIGradient", {
-    Parent = ToggleBtn,
-    Color = ColorSequence.new(Color3.fromRGB(30,30,35)),
-    Enabled = true
+UI:Create("UICorner", {Parent = MainButton, CornerRadius = UDim.new(1, 0)}) -- Circle
+local BtnStroke = UI:Create("UIStroke", {
+    Parent = MainButton,
+    Color = Color3.fromRGB(60, 60, 70),
+    Thickness = 2,
+    Transparency = 0.5
 })
-
 local Icon = UI:Create("ImageLabel", {
-    Parent = ToggleBtn,
-    Size = UDim2.new(0, 40, 0, 40),
-    Position = UDim2.new(0.5, -20, 0.5, -20),
-    Image = "rbxassetid://6031068421", -- Power Icon
-    ImageColor3 = Color3.fromRGB(100, 100, 100),
-    BackgroundTransparency = 1
+    Parent = MainButton,
+    Size = UDim2.new(0, 50, 0, 50),
+    Position = UDim2.new(0.5, -25, 0.5, -25),
+    Image = "rbxassetid://3570695787", -- Power Icon-like glow
+    ImageColor3 = Color3.fromRGB(80, 80, 80),
+    BackgroundTransparency = 1,
+    ZIndex = 3
 })
 
 -- Slider
 local SliderPanel = UI:Create("Frame", {
-    Parent = Content,
-    Size = UDim2.new(1, 0, 0, 50),
-    Position = UDim2.new(0, 0, 0, 145),
-    BackgroundTransparency = 1
-})
-local SliderTitle = UI:Create("TextLabel", {
-    Parent = SliderPanel,
-    Text = "Packet Intensity",
-    Size = UDim2.new(1, 0, 0, 20),
-    TextColor3 = Color3.fromRGB(200, 200, 200),
+    Parent = Main,
+    Size = UDim2.new(0, 220, 0, 40),
+    Position = UDim2.new(0.5, -110, 1, -50),
     BackgroundTransparency = 1,
-    Font = Enum.Font.GothamMedium,
-    TextSize = 12,
-    TextXAlignment = Enum.TextXAlignment.Left
+    ZIndex = 2
 })
-local SliderValue = UI:Create("TextLabel", {
+
+local SliderLabel = UI:Create("TextLabel", {
     Parent = SliderPanel,
-    Text = "5",
+    Text = "Intensity: 5",
     Size = UDim2.new(1, 0, 0, 20),
-    TextColor3 = Color3.fromRGB(255, 170, 0),
+    TextColor3 = Color3.fromRGB(180, 180, 180),
     BackgroundTransparency = 1,
-    Font = Enum.Font.GothamBold,
+    Font = Enum.Font.Gotham,
     TextSize = 12,
-    TextXAlignment = Enum.TextXAlignment.Right
+    ZIndex = 2
 })
-local SliderTrack = UI:Create("TextButton", {
+
+local SliderBar = UI:Create("TextButton", {
     Parent = SliderPanel,
-    Size = UDim2.new(1, 0, 0, 6),
-    Position = UDim2.new(0, 0, 0, 30),
-    BackgroundColor3 = Color3.fromRGB(40, 40, 45),
+    Size = UDim2.new(1, 0, 0, 4),
+    Position = UDim2.new(0, 0, 0, 25),
+    BackgroundColor3 = Color3.fromRGB(40, 40, 50),
     Text = "",
-    AutoButtonColor = false
+    AutoButtonColor = false,
+    ZIndex = 2
 })
-UI:Create("UICorner", {Parent = SliderTrack, CornerRadius = UDim.new(1, 0)})
+UI:Create("UICorner", {Parent = SliderBar, CornerRadius = UDim.new(1, 0)})
+
 local SliderFill = UI:Create("Frame", {
-    Parent = SliderTrack,
+    Parent = SliderBar,
     Size = UDim2.new(0.05, 0, 1, 0),
-    BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+    BackgroundColor3 = Color3.fromRGB(0, 255, 255),
+    ZIndex = 2
 })
 UI:Create("UICorner", {Parent = SliderFill, CornerRadius = UDim.new(1, 0)})
-
--- Footer
-local Footer = UI:Create("TextLabel", {
-    Parent = MainFrame,
-    Size = UDim2.new(1, 0, 0, 20),
-    Position = UDim2.new(0, 0, 1, -25),
-    Text = "CapyLagger v2.0 - Stable",
-    Font = Enum.Font.Gotham,
-    TextSize = 10,
-    TextColor3 = Color3.fromRGB(100, 100, 100),
-    BackgroundTransparency = 1
+local SliderGlow = UI:Create("ImageLabel", {
+    Parent = SliderFill,
+    Size = UDim2.new(0, 15, 0, 15),
+    Position = UDim2.new(1, -7, 0.5, -7),
+    BackgroundTransparency = 1,
+    Image = "rbxassetid://3570695787",
+    ImageColor3 = Color3.fromRGB(0, 255, 255),
+    ZIndex = 3
 })
+
+-- // OPENING ANIMATION //
+Main.Size = UDim2.new(0, 0, 0, 0)
+UI:Tween(Main, {Size = UDim2.new(0, 260, 0, 320)}, 0.6, Enum.EasingStyle.Back)
 
 -- // LOGIC FUNCTIONS //
 
-local function UpdateButtonVisuals(state)
+local function Pulse(obj)
+    local info = TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+    local tween = TweenService:Create(obj, info, {ImageTransparency = 0.2})
+    tween:Play()
+    return tween
+end
+
+local pulseTween = nil
+
+local function ToggleVisuals(state)
     if state then
-        -- ON State
-        UI:Tween(ToggleBtn, {BackgroundColor3 = Color3.fromRGB(255, 255, 255)})
-        BtnGradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 50)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 50, 50))
-        })
+        -- ON
+        UI:Tween(MainButton, {BackgroundColor3 = Color3.fromRGB(255, 50, 50)})
         UI:Tween(Icon, {ImageColor3 = Color3.fromRGB(255, 255, 255)})
-        
-        -- Pulse Effect
-        task.spawn(function()
-            while Settings.LagEnabled do
-                UI:Tween(ToggleBtn, {Size = UDim2.new(1, -4, 0, 76), Position = UDim2.new(0, 2, 0, 52)}, 0.5)
-                task.wait(0.5)
-                if not Settings.LagEnabled then break end
-                UI:Tween(ToggleBtn, {Size = UDim2.new(1, 0, 0, 80), Position = UDim2.new(0, 0, 0, 50)}, 0.5)
-                task.wait(0.5)
-            end
-            -- Reset
-            UI:Tween(ToggleBtn, {Size = UDim2.new(1, 0, 0, 80), Position = UDim2.new(0, 0, 0, 50)}, 0.2)
-        end)
+        Icon.Image = "rbxassetid://3570695787" -- Glow
+        pulseTween = Pulse(Icon)
+        UI:Tween(BtnStroke, {Color = Color3.fromRGB(255, 100, 100), Transparency = 0})
     else
-        -- OFF State
-        UI:Tween(ToggleBtn, {BackgroundColor3 = Color3.fromRGB(30, 30, 35)})
-        BtnGradient.Color = ColorSequence.new(Color3.fromRGB(30, 30, 35))
-        UI:Tween(Icon, {ImageColor3 = Color3.fromRGB(100, 100, 100)})
+        -- OFF
+        if pulseTween then pulseTween:Cancel() end
+        Icon.ImageTransparency = 0
+        UI:Tween(MainButton, {BackgroundColor3 = Color3.fromRGB(25, 25, 35)})
+        UI:Tween(Icon, {ImageColor3 = Color3.fromRGB(80, 80, 80)})
+        UI:Tween(BtnStroke, {Color = Color3.fromRGB(60, 60, 70), Transparency = 0.5})
     end
 end
 
-ToggleBtn.MouseButton1Click:Connect(function()
+MainButton.MouseButton1Click:Connect(function()
     if not TargetRemote then return end
     Settings.LagEnabled = not Settings.LagEnabled
-    UpdateButtonVisuals(Settings.LagEnabled)
+    ToggleVisuals(Settings.LagEnabled)
     
     if Settings.LagEnabled then
-        StatusText.Text = "Sending Heavy Packets..."
-        StatusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+        StatusText.Text = "Sending Packets..."
+        StatusText.TextColor3 = Color3.fromRGB(255, 80, 80)
         UI:Tween(StatusDot, {BackgroundColor3 = Color3.fromRGB(255, 50, 50)})
     else
         StatusText.Text = "Connected: " .. TargetRemote.Name
@@ -312,7 +344,7 @@ end)
 
 -- Slider Logic
 local dragging = false
-SliderTrack.MouseButton1Down:Connect(function() dragging = true end)
+SliderBar.MouseButton1Down:Connect(function() dragging = true end)
 UserInputService.InputEnded:Connect(function(input) 
     if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end 
 end)
@@ -320,12 +352,18 @@ end)
 RunService.RenderStepped:Connect(function()
     if dragging then
         local mPos = UserInputService:GetMouseLocation().X
-        local rPos = mPos - SliderTrack.AbsolutePosition.X
-        local perc = math.clamp(rPos / SliderTrack.AbsoluteSize.X, 0, 1)
+        local rPos = mPos - SliderBar.AbsolutePosition.X
+        local perc = math.clamp(rPos / SliderBar.AbsoluteSize.X, 0, 1)
+        
         SliderFill.Size = UDim2.new(perc, 0, 1, 0)
         local val = math.max(1, math.floor(perc * Settings.MaxPackets))
         Settings.PacketsPerSecond = val
-        SliderValue.Text = tostring(val)
+        SliderLabel.Text = "Intensity: " .. val
+        
+        -- Color change based on intensity
+        local col = Color3.fromHSV((1 - perc) * 0.3, 1, 1) -- Green to Red
+        SliderFill.BackgroundColor3 = col
+        SliderGlow.ImageColor3 = col
     end
 end)
 
@@ -358,12 +396,12 @@ local function Scan()
         StatusText.Text = "Failed: Not Supported"
         StatusText.TextColor3 = Color3.fromRGB(255, 50, 50)
         UI:Tween(StatusDot, {BackgroundColor3 = Color3.fromRGB(255, 50, 50)})
-        ToggleBtn.AutoButtonColor = false
-        Icon.ImageTransparency = 0.8
+        MainButton.AutoButtonColor = false
+        MainButton.BackgroundColor3 = Color3.fromRGB(20, 10, 10)
     end
 end
 
--- // LAG LOGIC (INSTANT STOP) //
+-- // LAG CORE (INSTANT STOP) //
 RunService.Heartbeat:Connect(function()
     if not Settings.LagEnabled or not TargetRemote then return end
     
@@ -374,23 +412,22 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- // DRAGGING GUI //
+-- // DRAGGING //
 local dragStart, startPos
 local isDraggingGUI = false
-MainFrame.InputBegan:Connect(function(input)
+Main.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        isDraggingGUI = true; dragStart = input.Position; startPos = MainFrame.Position
+        isDraggingGUI = true; dragStart = input.Position; startPos = Main.Position
     end
 end)
 UserInputService.InputChanged:Connect(function(input)
     if isDraggingGUI and input.UserInputType == Enum.UserInputType.MouseMovement then
         local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then isDraggingGUI = false end
 end)
 
--- Init
 Scan()
