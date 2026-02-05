@@ -1,8 +1,8 @@
 --[[
-    CAPY LAGGER: VOID APOCALYPSE (FINAL FIXED)
-    - Status: Connected restored
-    - Visuals: Clean Void (No Shadow)
-    - Logic: Instant Stop (0.00s)
+    CAPY LAGGER: VOID APOCALYPSE (FINAL + FIX)
+    - Updated Blacklist: Now blocks that specific UUID Remote
+    - Visuals: Clean Void (No Shadows)
+    - Logic: True 0.00s Instant Stop
 ]]
 
 local Players = game:GetService("Players")
@@ -15,8 +15,13 @@ local Debris = game:GetService("Debris")
 
 local LocalPlayer = Players.LocalPlayer
 
--- // ⛔ 100% BLACKLIST ⛔ //
+-- // ⛔ 100% BLACKLIST (UPDATED) ⛔ //
 local blacklistedNames = {
+    -- ТОТ САМЫЙ РЕМОУТ ИЗ СКРИНШОТА:
+    "352aad58-c786-4998-886b-3e4fa390721e", 
+    "RE/352aad58-c786-4998-886b-3e4fa390721e",
+
+    -- Остальной мусор:
     "PlaceCooldownFromChat", "AdminPanelService", "AdminPanel", "IntegrityCheckProcessor", 
     "LocalizationTableAnalyticsSender", "LocalizationService", "Analytics", "Telemetry", 
     "Logger", "Reporter", "CanChatWith", "SetPlayerBlockList", "UpdatePlayerBlockList",
@@ -42,7 +47,7 @@ local blacklistedNames = {
     "RE/TutorialService/StartTutorial", "RE/TutorialService/FinishTutorial", "RE/TeleportService/Reconnect"
 }
 
-local State = {LagEnabled = false, Target = nil, Packets = 10, Max = 200, UUID = HttpService:GenerateGUID(false)}
+local State = {LagEnabled = false, Target = nil, Packets = 10, Max = 250, UUID = HttpService:GenerateGUID(false)}
 
 -- // UI ENGINE //
 if CoreGui:FindFirstChild("CapyApocalypse") then CoreGui.CapyApocalypse:Destroy() end
@@ -62,8 +67,17 @@ local Main = New("Frame", {
     BackgroundColor3 = Color3.fromRGB(5, 5, 5), BorderSizePixel = 0
 }, 20)
 
+-- (Тень удалена полностью)
+
 local Stroke = New("UIStroke", {Parent = Main, Thickness = 3, Color = Color3.fromRGB(0, 255, 150)})
 local Grad = New("UIGradient", {Parent = Stroke, Color = ColorSequence.new(Color3.fromRGB(0,255,150), Color3.fromRGB(0,100,255))})
+
+task.spawn(function()
+    while Main.Parent do
+        Grad.Rotation = Grad.Rotation + 2
+        RunService.RenderStepped:Wait()
+    end
+end)
 
 -- // GLITCH TITLE //
 local Title = New("TextLabel", {
@@ -139,10 +153,8 @@ local function UpdateUI(on)
         Tw(CoreStroke, {Color = Color3.fromRGB(0,255,150)})
         Tw(CoreIcon, {ImageColor3 = Color3.fromRGB(0,255,150), Rotation = 0})
         Tw(Stroke, {Color = Color3.fromRGB(0,255,150)})
-        if State.Target then
-            StatusText.Text = "> CONNECTED: "..State.Target.Name
-            StatusText.TextColor3 = Color3.new(0,1,0.6)
-        end
+        StatusText.Text = "> STANDBY"
+        StatusText.TextColor3 = Color3.new(0,1,0.6)
     end
 end
 
@@ -195,7 +207,7 @@ local function Scan()
         CoreStroke.Color = Color3.new(0.2,0,0)
         CoreIcon.ImageColor3 = Color3.new(0.2,0,0)
         Tw(Stroke, {Color = Color3.new(1,0,0)})
-        Grad.Enabled = false
+        PowerBtn.BackgroundColor3 = Color3.new(0,0,0)
     end
 end
 
