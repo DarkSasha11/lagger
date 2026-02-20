@@ -1,481 +1,235 @@
 --[[
-    Thorium Protector v2.0
-    Anti-theft protection system for Roblox game assets
-    Reconstructed from execution log
+    CLOUD HUB - TP BLOCK (V14 ULTRA-PREMIUM)
+    - Animated Shimmer Stroke
+    - Spring-based Interactive UI
+    - Modern Obsidian Theme
 ]]
 
---[ Services ]--
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
---[ Constants ]--
-local DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1462650760377667689/X68yAtw5tT7HIIAICsS8D74MkoajnVl9QrsFWQaGGsMVeGQyoy7CbSlyMx8dsq4EeeKb"
-local PLAYER = Players.LocalPlayer
-local PLOT_PATH = workspace.Plots:FindFirstChild("ef74588e-9a5f-4ea6-a9e5-eeb71e58d8bb")
+local player = Players.LocalPlayer
+local REQUIRED_TOOL = "Flying Carpet"
+local teleportKey = Enum.KeyCode.F
+local isWaitingForKey = false
 
-local COLORS = {
-    Background = Color3.fromRGB(10, 10, 10),
-    AccentBlue = Color3.fromRGB(88, 101, 242),
-    AccentGreen = Color3.fromRGB(76, 175, 80),
-    AccentRed = Color3.fromRGB(240, 70, 90),
-    AccentOrange = Color3.fromRGB(255, 170, 0),
-    TextPrimary = Color3.fromRGB(255, 255, 255),
-    TextSecondary = Color3.fromRGB(200, 200, 255)
+-- --- THEME CONFIG ---
+local Theme = {
+    Background = Color3.fromRGB(10, 10, 12),
+    Accent = Color3.fromRGB(0, 255, 230),
+    AccentSecondary = Color3.fromRGB(0, 120, 255),
+    Button = Color3.fromRGB(20, 20, 25),
+    Text = Color3.fromRGB(255, 255, 255),
+    TextDim = Color3.fromRGB(150, 150, 160)
 }
 
---[ State Variables ]--
-local protectionEnabled = true
-local spamOnSteal = false
-local spamWithKick = false
-local antiTpScam = true
-local isDragging = false
-local dragInput, dragStart, startPos
-
---[ Utility Functions ]--
-local function sendWebhook(itemName)
-    local payload = HttpService:JSONEncode({
-        username = "Defender System",
-        embeds = {{
-            fields = {
-                {value = "```" .. PLAYER.Name .. "```", name = "👤 Player", inline = true},
-                {value = "```" .. itemName .. "```", name = "🔒 Item Protected", inline = true},
-                {
-                    value = "----------------------\nProtect Your Base with Confidence\nSay goodbye to stolen brainrots\n\n✅ Real-time thief detection\n✅ Balloon + admin spam defense\n✅ Always on while you're playing",
-                    name = "✨ Protection Status",
-                    inline = false
-                }
-            },
-            title = "🛡️ Defender Vouches",
-            footer = {text = "Defender • Modern Asset Protection"},
-            color = 2845695,
-            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ"),
-            description = "A protected asset has been **successfully secured**."
-        }},
-        avatar_url = ""
+-- --- NOTIFICATION ---
+local function notify(title, text)
+    StarterGui:SetCore("SendNotification", {
+        Title = title,
+        Text = text,
+        Duration = 3,
     })
-    
-    pcall(function()
-        request({
-            Url = DISCORD_WEBHOOK,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = payload
-        })
-    end)
 end
 
-local function showNotification(title, message, duration)
-    -- Notification system implementation
-    local notif = Instance.new("ScreenGui")
-    notif.Name = "FancyNotify"
-    notif.Parent = CoreGui
-    notif.ResetOnSpawn = false
-    notif.IgnoreGuiInset = true
-    notif.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    
-    -- Create notification UI structure
-    -- (Full implementation truncated for brevity)
-    
-    task.wait(duration or 3)
-    notif:Destroy()
-end
+-- --- LOGIC ---
+local spots = {
+    CFrame.new(-402.18, -6.34, 131.83) * CFrame.Angles(0, math.rad(-20.08), 0),
+    CFrame.new(-416.66, -6.34, -2.05) * CFrame.Angles(0, math.rad(-62.89), 0),
+    CFrame.new(-329.37, -4.68, 18.12) * CFrame.Angles(0, math.rad(-30.53), 0),
+}
 
---[ Main GUI Construction ]--
-local function createMainUI()
-    -- Clean up existing UI
-    if CoreGui:FindFirstChild("KdmlExecutorMobile") then
-        CoreGui.KdmlExecutorMobile:Destroy()
-    end
-    
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "KdmlExecutorMobile"
-    ScreenGui.Parent = CoreGui
-    ScreenGui.ResetOnSpawn = false
-    
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Size = UDim2.new(0, 280, 0, 300)
-    MainFrame.Position = UDim2.new(0.5, -140, 0.5, -150)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    MainFrame.Active = true
-    MainFrame.Parent = ScreenGui
-    
-    local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(0, 12)
-    UICorner.Parent = MainFrame
-    
-    -- Header Frame
-    local HeaderFrame = Instance.new("Frame")
-    HeaderFrame.Size = UDim2.new(1, 0, 0, 36)
-    HeaderFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    HeaderFrame.Parent = MainFrame
-    
-    local HeaderCorner = Instance.new("UICorner")
-    HeaderCorner.CornerRadius = UDim.new(0, 12)
-    HeaderCorner.Parent = HeaderFrame
-    
-    local TitleLabel = Instance.new("TextLabel")
-    TitleLabel.Size = UDim2.new(1, -80, 1, 0)
-    TitleLabel.Position = UDim2.new(0, 10, 0, 0)
-    TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Text = "⚡ Thorium Compact ⚡"
-    TitleLabel.TextColor3 = COLORS.TextSecondary
-    TitleLabel.TextSize = 14
-    TitleLabel.Font = Enum.Font.GothamBold
-    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    TitleLabel.Parent = HeaderFrame
-    
-    local StatusLabel = Instance.new("TextLabel")
-    StatusLabel.Position = UDim2.new(0, 27, 0, 12)
-    StatusLabel.BackgroundTransparency = 1
-    StatusLabel.Text = "PING STATUS"
-    StatusLabel.TextSize = 8
-    StatusLabel.TextColor3 = COLORS.TextSecondary
-    StatusLabel.Font = Enum.Font.Gotham
-    StatusLabel.Parent = HeaderFrame
-    
-    -- Close Button
-    local CloseButton = Instance.new("TextButton")
-    CloseButton.Size = UDim2.new(0, 28, 0, 28)
-    CloseButton.Position = UDim2.new(1, -32, 0.5, -14)
-    CloseButton.BackgroundColor3 = COLORS.AccentRed
-    CloseButton.Text = "X"
-    CloseButton.TextColor3 = COLORS.TextPrimary
-    CloseButton.Font = Enum.Font.GothamBold
-    CloseButton.TextSize = 14
-    CloseButton.Parent = HeaderFrame
-    
-    local CloseCorner = Instance.new("UICorner")
-    CloseCorner.CornerRadius = UDim.new(0, 10)
-    CloseCorner.Parent = CloseButton
-    
-    CloseButton.MouseButton1Click:Connect(function()
-        ScreenGui:Destroy()
-    end)
-    
-    -- Minimize Button
-    local MinimizeButton = Instance.new("TextButton")
-    MinimizeButton.Size = UDim2.new(0, 28, 0, 28)
-    MinimizeButton.Position = UDim2.new(1, -64, 0.5, -14)
-    MinimizeButton.BackgroundColor3 = COLORS.AccentBlue
-    MinimizeButton.Text = "_"
-    MinimizeButton.TextColor3 = COLORS.TextPrimary
-    MinimizeButton.Font = Enum.Font.GothamBold
-    MinimizeButton.TextSize = 16
-    MinimizeButton.Parent = HeaderFrame
-    
-    local MinCorner = Instance.new("UICorner")
-    MinCorner.CornerRadius = UDim.new(0, 10)
-    MinCorner.Parent = MinimizeButton
-    
-    -- Scrolling Frame for options
-    local ScrollingFrame = Instance.new("ScrollingFrame")
-    ScrollingFrame.Size = UDim2.new(1, -16, 1, -52)
-    ScrollingFrame.Position = UDim2.new(0, 8, 0, 44)
-    ScrollingFrame.BackgroundTransparency = 1
-    ScrollingFrame.BorderSizePixel = 0
-    ScrollingFrame.ScrollBarThickness = 5
-    ScrollingFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    ScrollingFrame.Parent = MainFrame
-    
-    local UIListLayout = Instance.new("UIListLayout")
-    UIListLayout.FillDirection = Enum.FillDirection.Vertical
-    UIListLayout.Padding = UDim.new(0, 6)
-    UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    UIListLayout.Parent = ScrollingFrame
-    
-    -- Status Display Frame
-    local StatusFrame = Instance.new("Frame")
-    StatusFrame.Size = UDim2.new(1, -16, 0, 50)
-    StatusFrame.Position = UDim2.new(0, 8, 1, -56)
-    StatusFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    StatusFrame.Parent = MainFrame
-    
-    local StatusCorner = Instance.new("UICorner")
-    StatusCorner.CornerRadius = UDim.new(0, 8)
-    StatusCorner.Parent = StatusFrame
-    
-    local StatusText = Instance.new("TextLabel")
-    StatusText.Size = UDim2.new(1, -8, 1, -8)
-    StatusText.Position = UDim2.new(0, 4, 0, 4)
-    StatusText.BackgroundTransparency = 1
-    StatusText.Text = "PING STATUS: SAFE (34 ms)"
-    StatusText.TextColor3 = COLORS.AccentGreen
-    StatusText.TextSize = 11
-    StatusText.Font = Enum.Font.Gotham
-    StatusText.TextYAlignment = Enum.TextYAlignment.Top
-    StatusText.Parent = StatusFrame
-    
-    -- Create toggle options
-    local function createToggle(name, orderIndex, defaultState, color)
-        local ToggleFrame = Instance.new("Frame")
-        ToggleFrame.Size = UDim2.new(1, -16, 0, 40)
-        ToggleFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-        ToggleFrame.LayoutOrder = orderIndex
-        ToggleFrame.Parent = ScrollingFrame
-        
-        local ToggleCorner = Instance.new("UICorner")
-        ToggleCorner.CornerRadius = UDim.new(0, 8)
-        ToggleCorner.Parent = ToggleFrame
-        
-        local ToggleStroke = Instance.new("UIStroke")
-        ToggleStroke.Color = color
-        ToggleStroke.Thickness = 1.2
-        ToggleStroke.Transparency = 0.4
-        ToggleStroke.Parent = ToggleFrame
-        
-        local Label = Instance.new("TextLabel")
-        Label.Size = UDim2.new(0.65, 0, 1, 0)
-        Label.BackgroundTransparency = 1
-        Label.Text = name
-        Label.TextColor3 = COLORS.TextPrimary
-        Label.TextSize = 12
-        Label.Font = Enum.Font.Gotham
-        Label.TextXAlignment = Enum.TextXAlignment.Left
-        Label.Position = UDim2.new(0.05, 0, 0, 0)
-        Label.Parent = ToggleFrame
-        
-        local ToggleBack = Instance.new("Frame")
-        ToggleBack.Size = UDim2.new(0, 40, 0, 20)
-        ToggleBack.Position = UDim2.new(0.8, 0, 0.5, -10)
-        ToggleBack.BackgroundColor3 = Color3.fromRGB(45, 40, 65)
-        ToggleBack.Parent = ToggleFrame
-        
-        local ToggleBackCorner = Instance.new("UICorner")
-        ToggleBackCorner.CornerRadius = UDim.new(1, 0)
-        ToggleBackCorner.Parent = ToggleBack
-        
-        local ToggleIndicator = Instance.new("Frame")
-        ToggleIndicator.Size = UDim2.new(0, 18, 0, 18)
-        ToggleIndicator.Position = UDim2.new(0, 1, 0, 1)
-        ToggleIndicator.BackgroundColor3 = defaultState and color or Color3.fromRGB(255, 0, 0)
-        ToggleIndicator.Parent = ToggleBack
-        
-        local IndicatorCorner = Instance.new("UICorner")
-        IndicatorCorner.CornerRadius = UDim.new(1, 0)
-        IndicatorCorner.Parent = ToggleIndicator
-        
-        local state = defaultState
-        
-        ToggleFrame.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                state = not state
-                ToggleIndicator:TweenPosition(
-                    state and UDim2.new(0, 21, 0, 1) or UDim2.new(0, 1, 0, 1),
-                    Enum.EasingDirection.Out,
-                    Enum.EasingStyle.Quad,
-                    0.2,
-                    true
-                )
-                ToggleIndicator.BackgroundColor3 = state and color or Color3.fromRGB(255, 0, 0)
-                
-                -- Update state variables
-                if name:find("SPAM IF STEALING %(KICK%)") then
-                    spamWithKick = state
-                elseif name:find("SPAM IF STEALING %(NO KICK%)") then
-                    spamOnSteal = state
-                elseif name:find("ANTI%-TP SCAM") then
-                    antiTpScam = state
-                end
-            end
-        end)
-        
-        return ToggleFrame
-    end
-    
-    createToggle("SPAM IF STEALING (KICK)", 0, false, COLORS.AccentRed)
-    createToggle("SPAM IF STEALING (NO KICK)", 1, true, COLORS.AccentGreen)
-    createToggle("ANTI-TP SCAM (RECOMMENDED)", 2, true, COLORS.AccentOrange)
-    
-    -- Dragging functionality
-    MainFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isDragging = true
-            dragStart = input.Position
-            startPos = MainFrame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    isDragging = false
-                end
-            end)
-        end
-    end)
-    
-    MainFrame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and isDragging then
-            local delta = input.Position - dragStart
-            MainFrame.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-    
-    -- Ping monitoring
-    task.spawn(function()
-        while task.wait(2) do
-            local ping = PLAYER:GetNetworkPing() * 1000
-            StatusText.Text = string.format("PING STATUS: SAFE (%.0f ms)", ping)
-            StatusText.TextColor3 = ping < 100 and COLORS.AccentGreen or COLORS.AccentOrange
-        end
-    end)
-    
-    return ScreenGui
-end
-
---[ Protection Logic ]--
-local function hookRemoteEvents()
-    local netFolder = ReplicatedStorage.Packages.Net
-    
-    for _, remote in pairs(netFolder:GetDescendants()) do
-        if remote:IsA("RemoteEvent") and not remote:FindFirstChild("_ThoriumHooked") then
-            local marker = Instance.new("BoolValue")
-            marker.Name = "_ThoriumHooked"
-            marker.Value = true
-            marker.Parent = remote
-            
-            remote.OnClientEvent:Connect(function(...)
-                -- Log events for monitoring
-            end)
-        end
+local function fastClick()
+    task.wait(0.7)
+    local size = workspace.CurrentCamera.ViewportSize
+    for _ = 1, 5 do
+        VirtualInputManager:SendMouseButtonEvent(size.X/2, size.Y/2 + 23, 0, true, game, 1)
+        VirtualInputManager:SendMouseButtonEvent(size.X/2, size.Y/2 + 23, 0, false, game, 1)
+        task.wait(0.01)
     end
 end
 
-local function monitorPlayerTheft()
-    local trackedPlayers = {}
-    
-    Players.PlayerAdded:Connect(function(player)
-        if player == PLAYER then return end
-        
-        trackedPlayers[player.UserId] = {
-            player = player,
-            inStealZone = false,
-            lastWarning = 0
-        }
-    end)
-    
-    Players.PlayerRemoving:Connect(function(player)
-        trackedPlayers[player.UserId] = nil
-    end)
-    
-    -- Monitor existing players
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= PLAYER then
-            trackedPlayers[player.UserId] = {
-                player = player,
-                inStealZone = false,
-                lastWarning = 0
-            }
-        end
+local function executeAction()
+    local tool = player.Backpack:FindFirstChild(REQUIRED_TOOL) or player.Character:FindFirstChild(REQUIRED_TOOL)
+    if not tool then
+        notify("❌ MISSING", "Requires: " .. REQUIRED_TOOL)
+        return
     end
+
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    if tool.Parent ~= char then char.Humanoid:EquipTool(tool) end
+
+    local target = nil
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then target = p break end
+    end
+
+    for _, spot in ipairs(spots) do
+        char.HumanoidRootPart.CFrame = spot
+        task.wait(0.1)
+    end
+
+    if target then
+        StarterGui:SetCore("PromptBlockPlayer", target)
+        fastClick()
+    end
+end
+
+-- --- UI CONSTRUCTION ---
+if player.PlayerGui:FindFirstChild("CloudHub_Ultra") then
+    player.PlayerGui.CloudHub_Ultra:Destroy()
+end
+
+local sg = Instance.new("ScreenGui", player.PlayerGui)
+sg.Name = "CloudHub_Ultra"
+sg.ResetOnSpawn = false
+
+-- Main Container
+local main = Instance.new("Frame", sg)
+main.Size = UDim2.new(0, 280, 0, 240)
+main.Position = UDim2.new(0.5, -140, 0.5, -120)
+main.BackgroundColor3 = Theme.Background
+main.BorderSizePixel = 0
+
+local mainCorner = Instance.new("UICorner", main)
+mainCorner.CornerRadius = UDim.new(0, 16)
+
+-- THE SHINING STROKE
+local mainStroke = Instance.new("UIStroke", main)
+mainStroke.Thickness = 2.5
+mainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local strokeGradient = Instance.new("UIGradient", mainStroke)
+strokeGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Theme.Accent),
+    ColorSequenceKeypoint.new(0.5, Theme.AccentSecondary),
+    ColorSequenceKeypoint.new(1, Theme.Accent)
+})
+
+-- Animate the Shine
+RunService.RenderStepped:Connect(function()
+    strokeGradient.Rotation = (strokeGradient.Rotation + 1.5) % 360
+end)
+
+-- Header
+local header = Instance.new("Frame", main)
+header.Size = UDim2.new(1, 0, 0, 50)
+header.BackgroundTransparency = 1
+
+local title = Instance.new("TextLabel", header)
+title.Size = UDim2.new(1, 0, 1, 0)
+title.Position = UDim2.new(0, 15, 0, 0)
+title.Text = "CLOUD HUB"
+title.TextColor3 = Theme.Text
+title.Font = Enum.Font.BuilderSansBold
+title.TextSize = 20
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.BackgroundTransparency = 1
+
+local glow = Instance.new("ImageLabel", main)
+glow.Name = "Glow"
+glow.BackgroundTransparency = 1
+glow.Position = UDim2.new(0, -15, 0, -15)
+glow.Size = UDim2.new(1, 30, 1, 30)
+glow.Image = "rbxassetid://5028822351"
+glow.ImageColor3 = Theme.Accent
+glow.ImageTransparency = 0.8
+glow.ZIndex = 0
+
+-- --- BUTTON GENERATOR ---
+local function createBtn(text, y)
+    local btn = Instance.new("TextButton", main)
+    btn.Size = UDim2.new(0, 250, 0, 50)
+    btn.Position = UDim2.new(0.5, -125, 0, y)
+    btn.BackgroundColor3 = Theme.Button
+    btn.Text = text
+    btn.TextColor3 = Theme.TextDim
+    btn.Font = Enum.Font.BuilderSansMedium
+    btn.TextSize = 15
+    btn.AutoButtonColor = false
     
-    -- Main monitoring loop
-    RunService.Heartbeat:Connect(function()
-        if not PLOT_PATH or not protectionEnabled then return end
-        
-        local stealHitbox = PLOT_PATH:FindFirstChild("StealHitbox")
-        if not stealHitbox then return end
-        
-        for userId, data in pairs(trackedPlayers) do
-            local player = data.player
-            if player and player.Character then
-                local hrp = player.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local distance = (hrp.Position - stealHitbox.Position).Magnitude
-                    local inZone = distance < (stealHitbox.Size.Magnitude / 2)
-                    
-                    if inZone and not data.inStealZone then
-                        data.inStealZone = true
-                        
-                        -- Trigger protection
-                        if spamWithKick then
-                            -- Spam admin panel kick requests
-                            for i = 1, 10 do
-                                pcall(function()
-                                    ReplicatedStorage.Packages.Net:FindFirstChild("RE/E6q?@!3q3?XiED>g7/S:;=ky=Gq;BLG}LADG@eF"):FireServer()
-                                end)
-                                task.wait(0.1)
-                            end
-                        elseif spamOnSteal then
-                            -- Spam without kick
-                            for i = 1, 5 do
-                                pcall(function()
-                                    ReplicatedStorage.Packages.Net:FindFirstChild("RE/eailifj4Z6g=5Zhi8fZ;=6nZphfh;>9paf9p"):FireServer()
-                                end)
-                                task.wait(0.1)
-                            end
-                        end
-                        
-                        -- Send webhook notification
-                        sendWebhook(player.Name)
-                        
-                    elseif not inZone and data.inStealZone then
-                        data.inStealZone = false
-                    end
-                end
-            end
-        end
+    local bCorner = Instance.new("UICorner", btn)
+    bCorner.CornerRadius = UDim.new(0, 10)
+    
+    local bStroke = Instance.new("UIStroke", btn)
+    bStroke.Thickness = 1.2
+    bStroke.Color = Theme.Accent
+    bStroke.Transparency = 0.8
+
+    -- Fancy Hover & Click Anims
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.3), {BackgroundColor3 = Color3.fromRGB(30, 30, 40), TextColor3 = Theme.Text}):Play()
+        TweenService:Create(bStroke, TweenInfo.new(0.3), {Transparency = 0.2, Thickness = 2}):Play()
     end)
-end
-
-local function monitorAssetDescendants()
-    if not PLOT_PATH then return end
     
-    local protectedAssets = {
-        "Garama and Madundung",
-        "Ta Ta Ta Ta Sahur",
-        "Karkerheart Luvkur",
-        "Rosetti Tualetti",
-        "Trippi Troppi",
-        "Gattito Tacoto",
-        "Tric Trac Baraboom"
-    }
-    
-    PLOT_PATH.DescendantAdded:Connect(function(descendant)
-        -- Monitor for new objects being added to plot
-        for _, assetName in pairs(protectedAssets) do
-            if descendant.Name == assetName or descendant:IsDescendantOf(PLOT_PATH:FindFirstChild(assetName) or workspace) then
-                sendWebhook(assetName)
-                break
-            end
-        end
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Button, TextColor3 = Theme.TextDim}):Play()
+        TweenService:Create(bStroke, TweenInfo.new(0.3), {Transparency = 0.8, Thickness = 1.2}):Play()
     end)
+
+    btn.MouseButton1Down:Connect(function()
+        btn:TweenSize(UDim2.new(0, 240, 0, 45), "Out", "Quad", 0.1, true)
+    end)
+    
+    btn.MouseButton1Up:Connect(function()
+        btn:TweenSize(UDim2.new(0, 250, 0, 50), "Out", "Elastic", 0.4, true)
+    end)
+
+    return btn
 end
 
---[ Initialization ]--
-local function initialize()
-    print("[Thorium Protector] Starting initialization...")
-    
-    -- Show loading notification
-    showNotification("THORIUM PROTECTOR", "Thorium Protector v2.0\nMaking sure all assets are loaded", 2)
-    
-    task.wait(2)
-    
-    -- Create main UI
-    createMainUI()
-    
-    -- Hook remote events
-    hookRemoteEvents()
-    
-    -- Start protection systems
-    monitorPlayerTheft()
-    monitorAssetDescendants()
-    
-    print("[Thorium Protector] Initialization complete!")
-end
+local actionBtn = createBtn("EXECUTE TELEPORT", 70)
+local keyBtn = createBtn("KEYBIND: " .. teleportKey.Name, 130)
 
--- Execute
-initialize()
+-- Interaction
+actionBtn.MouseButton1Click:Connect(function()
+    executeAction()
+end)
+
+keyBtn.MouseButton1Click:Connect(function()
+    if isWaitingForKey then return end
+    isWaitingForKey = true
+    keyBtn.Text = "WAITING..."
+    keyBtn.TextColor3 = Theme.Accent
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if isWaitingForKey and input.UserInputType == Enum.UserInputType.Keyboard then
+        teleportKey = input.KeyCode
+        keyBtn.Text = "KEYBIND: " .. teleportKey.Name
+        keyBtn.TextColor3 = Theme.TextDim
+        isWaitingForKey = false
+    elseif not gp and input.KeyCode == teleportKey then
+        executeAction()
+    end
+end)
+
+-- --- DRAGGING ---
+local dragging, dragInput, dragStart, startPos
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = main.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+notify("Cloud Hub", "Ultra-Premium UI Loaded")
