@@ -1,755 +1,257 @@
-if not game:IsLoaded() then game.Loaded:Wait() end
+local Services = setmetatable({}, {
+    __index = function(t, k) 
+        return game:GetService(k) 
+    end
+})
 
--- Services
-local Players = game:GetService("Players")
-local ProximityPromptService = game:GetService("ProximityPromptService")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
-local lp = Players.LocalPlayer
+local LocalPlayer = Services.Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- FFlags для оптимизации
-local fflags = {
-    GameNetPVHeaderRotationalVelocityZeroCutoffExponent = -5000,
-    LargeReplicatorWrite5 = true,
-    LargeReplicatorEnabled9 = true,
-    AngularVelociryLimit = 360,
-    TimestepArbiterVelocityCriteriaThresholdTwoDt = 2147483646,
-    S2PhysicsSenderRate = 15000,
-    DisableDPIScale = true,
-    MaxDataPacketPerSend = 2147483647,
-    PhysicsSenderMaxBandwidthBps = 20000,
-    TimestepArbiterHumanoidLinearVelThreshold = 21,
-    MaxMissedWorldStepsRemembered = -2147483648,
-    PlayerHumanoidPropertyUpdateRestrict = true,
-    SimDefaultHumanoidTimestepMultiplier = 0,
-    StreamJobNOUVolumeLengthCap = 2147483647,
-    DebugSendDistInSteps = -2147483648,
-    GameNetDontSendRedundantNumTimes = 1,
-    CheckPVLinearVelocityIntegrateVsDeltaPositionThresholdPercent = 1,
-    CheckPVDifferencesForInterpolationMinVelThresholdStudsPerSecHundredth = 1,
-    LargeReplicatorSerializeRead3 = true,
-    ReplicationFocusNouExtentsSizeCutoffForPauseStuds = 2147483647,
-    CheckPVCachedVelThresholdPercent = 10,
-    CheckPVDifferencesForInterpolationMinRotVelThresholdRadsPerSecHundredth = 1,
-    GameNetDontSendRedundantDeltaPositionMillionth = 1,
-    InterpolationFrameVelocityThresholdMillionth = 5,
-    StreamJobNOUVolumeCap = 2147483647,
-    InterpolationFrameRotVelocityThresholdMillionth = 5,
-    CheckPVCachedRotVelThresholdPercent = 10,
-    WorldStepMax = 30,
-    InterpolationFramePositionThresholdMillionth = 5,
-    TimestepArbiterHumanoidTurningVelThreshold = 1,
-    SimOwnedNOUCountThresholdMillionth = 2147483647,
-    GameNetPVHeaderLinearVelocityZeroCutoffExponent = -5000,
-    NextGenReplicatorEnabledWrite4 = true,
-    TimestepArbiterOmegaThou = 1073741823,
-    MaxAcceptableUpdateDelay = 1,
-    LargeReplicatorSerializeWrite4 = true
+-- Configs
+local Config = {
+    TeleportEnabled = true,
+    AutoBase1 = false,
+    AutoBase2 = false,
+    SavedPosition = nil,
+    ProximityPosition = nil
 }
 
-local function setfflags()
-    for k, v in pairs(fflags) do
-        pcall(function()
-            setfflag(k, tostring(v))
-        end)
-    end
-end
-
--- Улучшенная функция Desync Respawn
-local function forceRespawn()
-    local char = lp.Character
-    if not char then return end
-
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid:ChangeState(Enum.HumanoidStateType.Dead)
-    end
-
-    char:ClearAllChildren()
-
-    local dummy = Instance.new("Model")
-    dummy.Parent = Workspace
-    lp.Character = dummy
-    task.wait(0.1)
-    lp.Character = char
-    dummy:Destroy()
-end
-
--- УЛУЧШЕННАЯ ФУНКЦИЯ ТЕЛЕПОРТА С ПРОВЕРКАМИ
-local function safeTeleport(targetCFrame)
-    local char = lp.Character
-    if not char then return false end
-    
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return false end
-    
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return false end
-    
-    -- Проверка на живого персонажа
-    if humanoid.Health <= 0 then return false end
-    
-    -- Отключаем физику на момент телепорта
-    root.Anchored = true
-    root.CFrame = targetCFrame
-    task.wait(0.05)
-    root.Anchored = false
-    
-    return true
-end
-
--- УЛУЧШЕННАЯ ФУНКЦИЯ MULTI-TELEPORT
-local function multiTeleport(sequence)
-    for i, cframe in ipairs(sequence) do
-        local success = safeTeleport(cframe)
-        if not success then
-            warn("❌ Teleport failed at step " .. i)
-            return false
-        end
-        if i < #sequence then
-            task.wait(0.08) -- Небольшая задержка между телепортами
-        end
-    end
-    return true
-end
-
--- 🎨 PREMIUM UI DESIGN
-local sg = Instance.new("ScreenGui")
-sg.Parent = lp:WaitForChild("PlayerGui")
-sg.ResetOnSpawn = false
-sg.Name = "CapyInstaStealGUI"
-sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-local main = Instance.new("Frame", sg)
-main.Size = UDim2.fromOffset(320, 480)
-main.Position = UDim2.fromScale(0.5, 0.5)
-main.AnchorPoint = Vector2.new(0.5, 0.5)
-main.BackgroundColor3 = Color3.fromRGB(15, 18, 25)
-main.Active = true
-main.Draggable = true
-main.BorderSizePixel = 0
-
-local mainCorner = Instance.new("UICorner", main)
-mainCorner.CornerRadius = UDim.new(0, 16)
-
--- Gradient Background
-local grad = Instance.new("UIGradient", main)
-grad.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 30, 45)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(18, 22, 35)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 15, 25))
+local Stations = {
+    Chest1 = Vector3.new(-336.724335, -4.433933, 5.031977),
+    Chest2 = Vector3.new(-334.574585, -4.433943, 108.064049),
+    Base1 = Vector3.new(-335.489075, -4.168889, 103.038925),
+    Base2 = Vector3.new(-335.223877, -4.168889, 18.079557)
 }
-grad.Rotation = 135
 
--- Premium Stroke (Red)
-local stroke = Instance.new("UIStroke", main)
-stroke.Color = Color3.fromRGB(255, 60, 60)
-stroke.Thickness = 2.5
-stroke.Transparency = 0.2
+local Markers = {}
+local TempMarker = nil
 
--- Outer Glow Effect
-local glow = Instance.new("ImageLabel", main)
-glow.Size = UDim2.new(1, 60, 1, 60)
-glow.Position = UDim2.new(0.5, 0, 0.5, 0)
-glow.AnchorPoint = Vector2.new(0.5, 0.5)
-glow.BackgroundTransparency = 1
-glow.Image = "rbxassetid://5028857084"
-glow.ImageColor3 = Color3.fromRGB(255, 60, 60)
-glow.ImageTransparency = 0.7
-glow.ZIndex = 0
-
--- Animated Stroke Color
-task.spawn(function()
-    while task.wait(2) do
-        if main and main.Parent then
-            TweenService:Create(stroke, TweenInfo.new(2, Enum.EasingStyle.Sine), {Color = Color3.fromRGB(255, 200, 0)}):Play()
-            task.wait(2)
-            TweenService:Create(stroke, TweenInfo.new(2, Enum.EasingStyle.Sine), {Color = Color3.fromRGB(255, 60, 60)}):Play()
-        end
+local function DecodeString(s)
+    local result = ""
+    for i = 1, #s do 
+        result = result .. string.char(string.byte(s, i) - 1) 
     end
+    return result
+end
+
+local function BuildMarker(position, text)
+    local part = Instance.new("Part")
+    part.Shape = Enum.PartType.Block
+    part.Size = Vector3.new(1.8, 1.8, 1.8)
+    part.Position = position + Vector3.new(0, -1.2, 0)
+    part.Anchored = true
+    part.CanCollide = false
+    part.Color = Color3.new(1, 1, 1)
+    part.Material = Enum.Material.SmoothPlastic
+    part.Parent = workspace
+    
+    task.spawn(function()
+        while part and part.Parent do
+            part.CFrame = part.CFrame * CFrame.Angles(0, 0.03, 0.015)
+            task.wait()
+        end
+    end)
+    
+    local billboard = Instance.new("BillboardGui", part)
+    billboard.Size = UDim2.new(0, 150, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 2.2, 0)
+    billboard.AlwaysOnTop = true
+    
+    local label = Instance.new("TextLabel", billboard)
+    label.BackgroundTransparency = 1
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 0, 0)
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 14
+    
+    return part
+end
+
+if PlayerGui:FindFirstChild("Strawberry_UI") then
+    PlayerGui["Strawberry_UI"]:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "Strawberry_UI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.fromOffset(230, 230)
+MainFrame.Position = UDim2.new(0.5, -115, 0.5, -115)
+MainFrame.BackgroundColor3 = Color3.fromRGB(160, 0, 0)
+MainFrame.BackgroundTransparency = 0.35
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local Corner = Instance.new("UICorner", MainFrame)
+Corner.CornerRadius = UDim.new(0, 12)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 35)
+Title.Position = UDim2.new(0, 0, 0, 8)
+Title.BackgroundTransparency = 1
+Title.RichText = true
+Title.Text = "<font color=\"rgb(255,255,255)\"><b>STRAWBERRY</b> TP</font>"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.Parent = MainFrame
+
+local Thanks = Instance.new("TextLabel")
+Thanks.Size = UDim2.new(1, 0, 0, 15)
+Thanks.Position = UDim2.new(0, 0, 0, 38)
+Thanks.BackgroundTransparency = 1
+Thanks.Text = "Thanks for using this script ^•^"
+Thanks.TextColor3 = Color3.fromRGB(255, 100, 100)
+Thanks.Font = Enum.Font.GothamMedium
+Thanks.TextSize = 10
+Thanks.Parent = MainFrame
+
+local function CreateButton(text, size, position)
+    local button = Instance.new("TextButton")
+    button.Size = size
+    button.Position = position
+    button.BackgroundColor3 = Color3.new(1, 1, 1)
+    button.BackgroundTransparency = 0.7
+    button.BorderSizePixel = 0
+    button.Text = text
+    button.Font = Enum.Font.GothamBold
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.TextSize = 10
+    button.Parent = MainFrame
+    
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+    return button
+end
+
+local SetButton = CreateButton("SET TP LOCATION", UDim2.new(0.88, 0, 0, 32), UDim2.new(0.06, 0, 0, 65))
+local Base1Button = CreateButton("base 1", UDim2.new(0.42, 0, 0, 32), UDim2.new(0.06, 0, 0, 105))
+local Base2Button = CreateButton("base 2", UDim2.new(0.42, 0, 0, 32), UDim2.new(0.52, 0, 0, 105))
+local Auto1Button = CreateButton("AUTO TO BASE 1: OFF", UDim2.new(0.88, 0, 0, 32), UDim2.new(0.06, 0, 0, 145))
+local Auto2Button = CreateButton("AUTO TO BASE 2: OFF", UDim2.new(0.88, 0, 0, 32), UDim2.new(0.06, 0, 0, 185))
+
+-- Evento: Botão Base 1
+Base1Button.MouseButton1Click:Connect(function() 
+    for _, marker in pairs(Markers) do 
+        marker:Destroy() 
+    end 
+    Markers = {BuildMarker(Stations.Base1, "STAND HERE")} 
 end)
 
--- Title Container
-local titleContainer = Instance.new("Frame", main)
-titleContainer.Size = UDim2.new(1, 0, 0, 60)
-titleContainer.Position = UDim2.fromOffset(0, 15)
-titleContainer.BackgroundTransparency = 1
+Base2Button.MouseButton1Click:Connect(function() 
+    for _, marker in pairs(Markers) do 
+        marker:Destroy() 
+    end 
+    Markers = {BuildMarker(Stations.Base2, "STAND HERE")} 
+end)
 
--- Title Background Effect
-local titleBG = Instance.new("Frame", titleContainer)
-titleBG.Size = UDim2.new(1, -20, 1, 0)
-titleBG.Position = UDim2.fromOffset(10, 0)
-titleBG.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-titleBG.BackgroundTransparency = 0.92
-titleBG.BorderSizePixel = 0
-Instance.new("UICorner", titleBG).CornerRadius = UDim.new(0, 12)
+SetButton.MouseButton1Click:Connect(function() 
+    local character = LocalPlayer.Character
+    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if humanoidRootPart then 
+        Config.SavedPosition = humanoidRootPart.CFrame 
+        
+        if TempMarker then 
+            TempMarker:Destroy() 
+        end 
+        
+        TempMarker = BuildMarker(humanoidRootPart.Position, "TP")
+        SetButton.Text = "LOCATION SAVED"
+        task.wait(1)
+        SetButton.Text = "SET TP LOCATION"
+    end 
+end)
 
--- Left Title (CAPY)
-local titleLeft = Instance.new("TextLabel", titleContainer)
-titleLeft.Size = UDim2.new(0.5, 0, 1, 0)
-titleLeft.Position = UDim2.fromOffset(0, 0)
-titleLeft.BackgroundTransparency = 1
-titleLeft.Text = "CAPY"
-titleLeft.Font = Enum.Font.GothamBlack
-titleLeft.TextSize = 26
-titleLeft.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLeft.TextXAlignment = Enum.TextXAlignment.Right
+Auto1Button.MouseButton1Click:Connect(function()
+    Config.AutoBase1 = not Config.AutoBase1
+    Config.AutoBase2 = false
+    
+    Auto1Button.Text = Config.AutoBase1 and "AUTO TO BASE 1: ON" or "AUTO TO BASE 1: OFF"
+    Auto2Button.Text = "AUTO TO BASE 2: OFF"
+    
+    Auto1Button.TextColor3 = Config.AutoBase1 and Color3.new(0, 1, 0) or Color3.new(1, 1, 1)
+    Auto2Button.TextColor3 = Color3.new(1, 1, 1)
+end)
 
--- Right Title (INSTA)
-local titleRight = Instance.new("TextLabel", titleContainer)
-titleRight.Size = UDim2.new(0.5, 0, 1, 0)
-titleRight.Position = UDim2.new(0.5, 0, 0, 0)
-titleRight.BackgroundTransparency = 1
-titleRight.Text = " INSTA"
-titleRight.Font = Enum.Font.GothamBlack
-titleRight.TextSize = 26
-titleRight.TextColor3 = Color3.fromRGB(255, 215, 0)
-titleRight.TextXAlignment = Enum.TextXAlignment.Left
+-- Evento: Auto Base 2
+Auto2Button.MouseButton1Click:Connect(function()
+    Config.AutoBase2 = not Config.AutoBase2
+    Config.AutoBase1 = false
+    
+    Auto2Button.Text = Config.AutoBase2 and "AUTO TO BASE 2: ON" or "AUTO TO BASE 2: OFF"
+    Auto1Button.Text = "AUTO TO BASE 1: OFF"
+    
+    Auto2Button.TextColor3 = Config.AutoBase2 and Color3.new(0, 1, 0) or Color3.new(1, 1, 1)
+    Auto1Button.TextColor3 = Color3.new(1, 1, 1)
+end)
 
-local titleRight2 = Instance.new("TextLabel", titleContainer)
-titleRight2.Size = UDim2.new(1, 0, 0, 25)
-titleRight2.Position = UDim2.fromOffset(0, 35)
-titleRight2.BackgroundTransparency = 1
-titleRight2.Text = "STEAL"
-titleRight2.Font = Enum.Font.GothamBlack
-titleRight2.TextSize = 22
-titleRight2.TextColor3 = Color3.fromRGB(255, 100, 100)
-titleRight2.TextXAlignment = Enum.TextXAlignment.Center
+local ProximityCoords = {
+    Vector3.new(-481.88,-3.79,138.02), Vector3.new(-481.75,-3.79,89.18), Vector3.new(-481.82,-3.79,30.95),
+    Vector3.new(-481.75,-3.79,-17.79), Vector3.new(-481.80,-3.79,-76.06), Vector3.new(-481.72,-3.79,-124.70),
+    Vector3.new(-337.45,-3.85,-124.72), Vector3.new(-337.37,-3.85,-76.07), Vector3.new(-337.46,-3.79,-17.72),
+    Vector3.new(-337.41,-3.79,30.92), Vector3.new(-337.32,-3.79,89.02), Vector3.new(-337.27,-3.79,137.90),
+    Vector3.new(-337.45,-3.79,196.29), Vector3.new(-337.37,-3.79,244.91), Vector3.new(-481.72,-3.79,196.21),
+    Vector3.new(-481.76,-3.79,244.92)
+}
 
--- Add strokes to titles
-for _, part in ipairs({titleLeft, titleRight, titleRight2}) do
-    local ts = Instance.new("UIStroke", part)
-    ts.Color = Color3.fromRGB(255, 60, 60)
-    ts.Thickness = 1.5
-    ts.Transparency = 0.3
-end
-
--- Status Label
-local stat = Instance.new("TextLabel", main)
-stat.Size = UDim2.new(1, -20, 0, 28)
-stat.Position = UDim2.fromOffset(10, 85)
-stat.BackgroundColor3 = Color3.fromRGB(25, 35, 45)
-stat.Text = "● Status: Ready"
-stat.Font = Enum.Font.GothamBold
-stat.TextSize = 13
-stat.TextColor3 = Color3.fromRGB(100, 255, 100)
-stat.TextXAlignment = Enum.TextXAlignment.Center
-Instance.new("UICorner", stat).CornerRadius = UDim.new(0, 8)
-
-local statStroke = Instance.new("UIStroke", stat)
-statStroke.Color = Color3.fromRGB(100, 255, 100)
-statStroke.Thickness = 1.2
-statStroke.Transparency = 0.4
-
--- Info Label (новый элемент)
-local info = Instance.new("TextLabel", main)
-info.Size = UDim2.new(1, -20, 0, 20)
-info.Position = UDim2.fromOffset(10, 118)
-info.BackgroundTransparency = 1
-info.Text = "Auto-Target: Active"
-info.Font = Enum.Font.GothamMedium
-info.TextSize = 11
-info.TextColor3 = Color3.fromRGB(150, 150, 150)
-info.TextXAlignment = Enum.TextXAlignment.Center
-
--- Pulse effect for status
 task.spawn(function()
     while task.wait(1) do
-        if stat then
-            TweenService:Create(statStroke, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {Transparency = 0.2}):Play()
-            task.wait(0.5)
-            TweenService:Create(statStroke, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {Transparency = 0.4}):Play()
-        end
-    end
-end)
-
--- Button Creator Function
-local function btn(txt, y, icon)
-    local b = Instance.new("TextButton", main)
-    b.Size = UDim2.new(1, -40, 0, 45)
-    b.Position = UDim2.fromOffset(20, y)
-    b.Text = (icon or "") .. " " .. txt
-    b.Font = Enum.Font.GothamBold
-    b.TextSize = 15
-    b.TextColor3 = Color3.fromRGB(255, 255, 255)
-    b.BackgroundColor3 = Color3.fromRGB(45, 55, 75)
-    b.AutoButtonColor = false
-    b.BorderSizePixel = 0
-    
-    local corner = Instance.new("UICorner", b)
-    corner.CornerRadius = UDim.new(0, 10)
-
-    local s = Instance.new("UIStroke", b)
-    s.Color = Color3.fromRGB(255, 100, 100)
-    s.Thickness = 2
-    s.Transparency = 0.3
-
-    local btnGrad = Instance.new("UIGradient", b)
-    btnGrad.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 70, 95)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(40, 50, 70))
-    }
-    btnGrad.Rotation = 90
-
-    b.MouseEnter:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(80, 90, 120)}):Play()
-        TweenService:Create(s, TweenInfo.new(0.2), {Transparency = 0, Color = Color3.fromRGB(255, 215, 0)}):Play()
-        TweenService:Create(b, TweenInfo.new(0.2), {Size = UDim2.new(1, -35, 0, 47)}):Play()
-    end)
-
-    b.MouseLeave:Connect(function()
-        TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 55, 75)}):Play()
-        TweenService:Create(s, TweenInfo.new(0.2), {Transparency = 0.3, Color = Color3.fromRGB(255, 100, 100)}):Play()
-        TweenService:Create(b, TweenInfo.new(0.2), {Size = UDim2.new(1, -40, 0, 45)}):Play()
-    end)
-
-    return b
-end
-
--- Create Buttons
-local setpos = btn("SET RETURN POSITION", 150, "📍")
-local desync = btn("ENABLE DESYNC", 205, "⚡")
-local unwalk = btn("STOP ANIMATIONS", 260, "🎭")
-local autoTpLeft = btn("AUTO TP LEFT", 315, "⬅️")
-local autoTpRight = btn("AUTO TP RIGHT", 370, "➡️")
-local instantSteal = btn("INSTANT STEAL MODE", 425, "🚀")
-
--- Close Button
-local closeBtn = Instance.new("TextButton", main)
-closeBtn.Size = UDim2.fromOffset(35, 35)
-closeBtn.Position = UDim2.new(1, -45, 0, 10)
-closeBtn.Text = "×"
-closeBtn.Font = Enum.Font.GothamBlack
-closeBtn.TextSize = 24
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.BackgroundColor3 = Color3.fromRGB(60, 70, 90)
-closeBtn.BorderSizePixel = 0
-Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 8)
-
-local closeBtnStroke = Instance.new("UIStroke", closeBtn)
-closeBtnStroke.Color = Color3.fromRGB(255, 100, 100)
-closeBtnStroke.Thickness = 1.5
-
-closeBtn.MouseEnter:Connect(function()
-    TweenService:Create(closeBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 60, 60)}):Play()
-end)
-
-closeBtn.MouseLeave:Connect(function()
-    TweenService:Create(closeBtn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 70, 90)}):Play()
-end)
-
-closeBtn.MouseButton1Click:Connect(function()
-    main.Visible = not main.Visible
-end)
-
--- Toggle with INSERT key
-UserInputService.InputBegan:Connect(function(input, gp)
-    if not gp and input.KeyCode == Enum.KeyCode.Insert then
-        main.Visible = not main.Visible
-    end
-end)
-
--- Animation Stop Toggle
-local conn
-local active = false
-
-unwalk.MouseButton1Click:Connect(function()
-    local char = lp.Character
-    if not char then return end
-
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
-
-    local anim = hum:FindFirstChildWhichIsA("Animator")
-    if not anim then return end
-
-    if active then
-        if conn then conn:Disconnect() conn = nil end
-        stat.Text = "● Status: Animations Restored"
-        stat.TextColor3 = Color3.fromRGB(100, 255, 100)
-        statStroke.Color = Color3.fromRGB(100, 255, 100)
-        unwalk.Text = "🎭 STOP ANIMATIONS"
-        active = false
-    else
-        if conn then conn:Disconnect() conn = nil end
-
-        conn = RunService.Heartbeat:Connect(function()
-            for _, track in pairs(anim:GetPlayingAnimationTracks()) do
-                track:Stop()
-                track:AdjustSpeed(0)
-            end
-        end)
-
-        stat.Text = "● Status: Animations Stopped"
-        stat.TextColor3 = Color3.fromRGB(255, 200, 0)
-        statStroke.Color = Color3.fromRGB(255, 200, 0)
-        unwalk.Text = "✓ RESTORE ANIMATIONS"
-        active = true
-    end
-end)
-
--- Target Positions
-local targets = {
-    Vector3.new(-481.88, -3.79, 138.02),
-    Vector3.new(-481.75, -3.79, 89.18),
-    Vector3.new(-481.82, -3.79, 30.95),
-    Vector3.new(-481.75, -3.79, -17.79),
-    Vector3.new(-481.80, -3.79, -76.06),
-    Vector3.new(-481.72, -3.79, -124.70),
-    Vector3.new(-337.45, -3.85, -124.72),
-    Vector3.new(-337.37, -3.85, -76.07),
-    Vector3.new(-337.46, -3.79, -17.72),
-    Vector3.new(-337.41, -3.79, 30.92),
-    Vector3.new(-337.32, -3.79, 89.02),
-    Vector3.new(-337.27, -3.79, 137.90),
-    Vector3.new(-337.45, -3.79, 196.29),
-    Vector3.new(-337.37, -3.79, 244.91),
-    Vector3.new(-481.72, -3.79, 196.21),
-    Vector3.new(-481.76, -3.79, 244.92)
-}
-
--- Base Zones
-local bases = {
-    Base1 = {
-        Vector3.new(-335.65, -5.40, -10.99),
-        Vector3.new(-336.05, -5.34, 18.08)
-    },
-    Base2 = {
-        Vector3.new(-335.41, -5.40, 102.42),
-        Vector3.new(-334.89, -5.40, 125.81)
-    }
-}
-local currentBase = nil
-
-local function isOnBase(pos)
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    return root and (root.Position - pos).Magnitude <= 5
-end
-
--- Base Detection Loop
-task.spawn(function()
-    while task.wait(0.3) do
-        currentBase = nil
-        for name, spots in pairs(bases) do
-            for _, spot in ipairs(spots) do
-                if isOnBase(spot) then
-                    currentBase = name
-                    stat.Text = "● Status: " .. name .. " Locked"
-                    stat.TextColor3 = Color3.fromRGB(100, 200, 255)
-                    statStroke.Color = Color3.fromRGB(100, 200, 255)
-                    break
-                end
-            end
-            if currentBase then break end
-        end
-        if not currentBase then
-            stat.Text = "● Status: Ready"
-            stat.TextColor3 = Color3.fromRGB(100, 255, 100)
-            statStroke.Color = Color3.fromRGB(100, 255, 100)
-        end
-    end
-end)
-
--- Beam Variables
-local posA, posB
-local beamA, beamB
-local partA, partB
-
--- Beam Creator
-local function makeBeam(targetPos, slot)
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    local anchor = Instance.new("Part")
-    anchor.Anchored = true
-    anchor.CanCollide = false
-    anchor.Transparency = 1
-    anchor.Size = Vector3.new(1, 1, 1)
-    anchor.CFrame = CFrame.new(targetPos)
-    anchor.Parent = Workspace
-
-    local att0 = Instance.new("Attachment", anchor)
-    local att1 = Instance.new("Attachment", root)
-
-    local b = Instance.new("Beam")
-    b.Attachment0 = att0
-    b.Attachment1 = att1
-    b.Width0 = 0.9
-    b.Width1 = 0.9
-    b.FaceCamera = true
-    b.LightEmission = 1
-    b.Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 60, 60)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 215, 0)),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 60, 60))
-    }
-    b.Transparency = NumberSequence.new{
-        NumberSequenceKeypoint.new(0, 0.2),
-        NumberSequenceKeypoint.new(0.5, 0),
-        NumberSequenceKeypoint.new(1, 0.2)
-    }
-    b.Parent = Workspace
-
-    if slot == 1 then
-        if beamA then beamA:Destroy() end
-        if partA then partA:Destroy() end
-        beamA, partA = b, anchor
-    else
-        if beamB then beamB:Destroy() end
-        if partB then partB:Destroy() end
-        beamB, partB = b, anchor
-    end
-end
-
--- Set Position Button
-setpos.MouseButton1Click:Connect(function()
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root then 
-        stat.Text = "● Status: Error - No Character"
-        stat.TextColor3 = Color3.fromRGB(255, 80, 80)
-        statStroke.Color = Color3.fromRGB(255, 80, 80)
-        return 
-    end
-    
-    posA = root.CFrame
-    makeBeam(posA.Position, 1)
-    stat.Text = "● Status: Return Position Set ✓"
-    stat.TextColor3 = Color3.fromRGB(255, 200, 0)
-    statStroke.Color = Color3.fromRGB(255, 200, 0)
-    
-    TweenService:Create(setpos, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(80, 200, 100)}):Play()
-    task.wait(0.2)
-    TweenService:Create(setpos, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 55, 75)}):Play()
-end)
-
--- Desync Button
-desync.MouseButton1Click:Connect(function()
-    setfflags()
-    task.wait(0.1)
-    forceRespawn()
-    stat.Text = "● Status: Desync Enabled ⚡"
-    stat.TextColor3 = Color3.fromRGB(255, 100, 255)
-    statStroke.Color = Color3.fromRGB(255, 100, 255)
-    
-    TweenService:Create(desync, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(180, 80, 220)}):Play()
-    task.wait(0.2)
-    TweenService:Create(desync, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 55, 75)}):Play()
-end)
-
--- Auto Target Closest (улучшенная версия)
-local targetUpdateRate = 0.5
-task.spawn(function()
-    while task.wait(targetUpdateRate) do
-        local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-        if not root then continue end
-
-        local best, bestDist = nil, math.huge
-        for _, p in ipairs(targets) do
-            if currentBase == "Base1" and p.Z > 60 then continue end
-            if currentBase == "Base2" and p.Z < 60 then continue end
-
-            local dist = (root.Position - p).Magnitude
-            if dist < bestDist then
-                bestDist = dist
-                best = p
-            end
-        end
-
-        if best then
-            posB = CFrame.new(best)
-            makeBeam(best, 2)
-            info.Text = string.format("Auto-Target: %.1fm", bestDist)
-        else
-            info.Text = "Auto-Target: No Target"
-        end
-    end
-end)
-
--- УЛУЧШЕННАЯ СИСТЕМА STEAL TP
-local stealInProgress = false
-
-ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt, sender)
-    if sender ~= lp then return end
-    if prompt.Name ~= "Steal" and prompt.ActionText ~= "Steal" then return end
-    
-    stealInProgress = true
-    stat.Text = "● Status: Stealing..."
-    stat.TextColor3 = Color3.fromRGB(255, 200, 0)
-    statStroke.Color = Color3.fromRGB(255, 200, 0)
-end)
-
-ProximityPromptService.PromptButtonHoldEnded:Connect(function(prompt, sender)
-    if sender ~= lp then return end
-    if prompt.Name ~= "Steal" and prompt.ActionText ~= "Steal" then return end
-    
-    if not stealInProgress then return end
-    stealInProgress = false
-
-    local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not root then 
-        stat.Text = "● Status: TP Failed - No Root"
-        stat.TextColor3 = Color3.fromRGB(255, 80, 80)
-        statStroke.Color = Color3.fromRGB(255, 80, 80)
-        return 
-    end
-
-    local success = true
-    
-    if posA then 
-        success = safeTeleport(posA)
-        if success then
-            stat.Text = "● Status: Steal Complete! ✓"
-            stat.TextColor3 = Color3.fromRGB(100, 255, 100)
-            statStroke.Color = Color3.fromRGB(100, 255, 100)
-        else
-            stat.Text = "● Status: TP Failed!"
-            stat.TextColor3 = Color3.fromRGB(255, 80, 80)
-            statStroke.Color = Color3.fromRGB(255, 80, 80)
-            return
-        end
-    end
-    
-    if posB and success then 
-        task.wait(0.06)
-        safeTeleport(posB)
-    end
-end)
-
--- Auto TP Left (улучшенная версия)
-autoTpLeft.MouseButton1Click:Connect(function()
-    local spot1_sequence = {
-        CFrame.new(-370.810913, -7.00000334, 41.2687263, 0.99984771, 1.22364419e-09, 0.0174523517, -6.54859778e-10, 1, -3.2596418e-08, -0.0174523517, 3.25800258e-08, 0.99984771),
-        CFrame.new(-336.355286, -5.10107088, 17.2327671, -0.999883354, -2.76150569e-08, 0.0152716246, -2.88224964e-08, 1, -7.88441525e-08, -0.0152716246, -7.9275118e-08, -0.999883354)
-    }
-    
-    local success = multiTeleport(spot1_sequence)
-    
-    if success then
-        stat.Text = "● Status: TP Left Complete ✓"
-        stat.TextColor3 = Color3.fromRGB(100, 200, 255)
-        statStroke.Color = Color3.fromRGB(100, 200, 255)
-    else
-        stat.Text = "● Status: TP Left Failed ❌"
-        stat.TextColor3 = Color3.fromRGB(255, 80, 80)
-        statStroke.Color = Color3.fromRGB(255, 80, 80)
-    end
-    
-    TweenService:Create(autoTpLeft, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(80, 150, 255)}):Play()
-    task.wait(0.2)
-    TweenService:Create(autoTpLeft, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 55, 75)}):Play()
-end)
-
--- Auto TP Right (улучшенная версия)
-autoTpRight.MouseButton1Click:Connect(function()
-    local spot2_sequence = {
-        CFrame.new(-354.782867, -7.00000334, 92.8209305, -0.999997616, -1.11891862e-09, -0.00218066527, -1.11958298e-09, 1, 3.03415071e-10, 0.00218066527, 3.05855785e-10, -0.999997616),
-        CFrame.new(-336.942902, -5.10106993, 99.3276443, 0.999914348, -3.63984611e-08, 0.0130875716, 3.67094941e-08, 1, -2.35254749e-08, -0.0130875716, 2.40038975e-08, 0.999914348)
-    }
-    
-    local success = multiTeleport(spot2_sequence)
-    
-    if success then
-        stat.Text = "● Status: TP Right Complete ✓"
-        stat.TextColor3 = Color3.fromRGB(255, 150, 100)
-        statStroke.Color = Color3.fromRGB(255, 150, 100)
-    else
-        stat.Text = "● Status: TP Right Failed ❌"
-        stat.TextColor3 = Color3.fromRGB(255, 80, 80)
-        statStroke.Color = Color3.fromRGB(255, 80, 80)
-    end
-    
-    TweenService:Create(autoTpRight, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(255, 120, 80)}):Play()
-    task.wait(0.2)
-    TweenService:Create(autoTpRight, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45, 55, 75)}):Play()
-end)
-
--- НОВАЯ ФУНКЦИЯ: INSTANT STEAL MODE
-local instantStealEnabled = false
-
-instantSteal.MouseButton1Click:Connect(function()
-    instantStealEnabled = not instantStealEnabled
-    
-    if instantStealEnabled then
-        instantSteal.Text = "🚀 INSTANT MODE: ON"
-        instantSteal.BackgroundColor3 = Color3.fromRGB(100, 200, 50)
-        stat.Text = "● Status: Instant Steal Active!"
-        stat.TextColor3 = Color3.fromRGB(255, 100, 255)
-        statStroke.Color = Color3.fromRGB(255, 100, 255)
+        local character = LocalPlayer.Character
+        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
         
-        -- Автоматический steal при активации
-        task.spawn(function()
-            while instantStealEnabled do
-                task.wait(0.1)
-                
-                -- Проверяем наличие proximity prompt поблизости
-                local char = lp.Character
-                if not char then continue end
-                
-                local root = char:FindFirstChild("HumanoidRootPart")
-                if not root then continue end
-                
-                -- Ищем ближайший Steal prompt
-                for _, obj in pairs(Workspace:GetDescendants()) do
-                    if obj:IsA("ProximityPrompt") and (obj.Name == "Steal" or obj.ActionText == "Steal") then
-                        local parent = obj.Parent
-                        if parent and (parent.Position - root.Position).Magnitude <= obj.MaxActivationDistance then
-                            -- Выполняем steal автоматически
-                            if posA then safeTeleport(posA) end
-                            if posB then task.wait(0.06) safeTeleport(posB) end
-                            break
-                        end
-                    end
+        if humanoidRootPart then
+            local minDistance = math.huge
+            local closestPosition = nil
+            
+            for _, coord in ipairs(ProximityCoords) do
+                local distance = (humanoidRootPart.Position - coord).Magnitude
+                if distance < minDistance then 
+                    minDistance = distance
+                    closestPosition = coord 
                 end
             end
-        end)
-    else
-        instantSteal.Text = "🚀 INSTANT STEAL MODE"
-        instantSteal.BackgroundColor3 = Color3.fromRGB(45, 55, 75)
-        stat.Text = "● Status: Instant Mode OFF"
-        stat.TextColor3 = Color3.fromRGB(100, 255, 100)
-        statStroke.Color = Color3.fromRGB(100, 255, 100)
+            
+            if closestPosition then 
+                Config.ProximityPosition = CFrame.new(closestPosition) 
+            end
+        end
     end
 end)
 
--- Startup Animation
-main.Size = UDim2.fromOffset(0, 0)
-main.BackgroundTransparency = 1
-TweenService:Create(main, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-    Size = UDim2.fromOffset(320, 480),
-    BackgroundTransparency = 0
-}):Play()
-
-TweenService:Create(glow, TweenInfo.new(0.8), {ImageTransparency = 0.7}):Play()
-
--- Notification System
-local function showNotification(text, color)
-    local notif = Instance.new("TextLabel", sg)
-    notif.Size = UDim2.fromOffset(300, 50)
-    notif.Position = UDim2.new(0.5, -150, 0, -60)
-    notif.AnchorPoint = Vector2.new(0.5, 0)
-    notif.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
-    notif.Text = text
-    notif.TextColor3 = color
-    notif.Font = Enum.Font.GothamBold
-    notif.TextSize = 14
-    notif.BorderSizePixel = 0
+Services.ProximityPromptService.PromptButtonHoldEnded:Connect(function(prompt, player)
+    if player ~= LocalPlayer then return end
     
-    Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 10)
-    local notifStroke = Instance.new("UIStroke", notif)
-    notifStroke.Color = color
-    notifStroke.Thickness = 2
-    
-    TweenService:Create(notif, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Position = UDim2.new(0.5, -150, 0, 20)}):Play()
-    
-    task.delay(2, function()
-        TweenService:Create(notif, TweenInfo.new(0.3), {Position = UDim2.new(0.5, -150, 0, -60)}):Play()
-        task.wait(0.3)
-        notif:Destroy()
-    end)
-end
-
-print("✨ CAPY INSTA STEAL PRO - Loaded Successfully!")
-print("🔑 Press INSERT to toggle GUI")
-showNotification("✨ CAPY INSTA STEAL LOADED!", Color3.fromRGB(100, 255, 100))
+    if prompt.ActionText == DecodeString("Tubmn") or prompt.Name == DecodeString("Tubmn") then
+        local character = LocalPlayer.Character
+        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        
+        if humanoidRootPart and Config.SavedPosition and Config.ProximityPosition then
+            -- Teleporta para posição salva
+            humanoidRootPart.CFrame = Config.SavedPosition
+            task.wait(0.1)
+            
+            -- Teleporta para posição de proximidade
+            humanoidRootPart.CFrame = Config.ProximityPosition
+            
+            -- Caminha automaticamente para base se ativado
+            local walkToPosition = nil
+            if Config.AutoBase1 then
+                walkToPosition = Stations.Chest1
+            elseif Config.AutoBase2 then
+                walkToPosition = Stations.Chest2
+            end
+            
+            if walkToPosition and humanoid then
+                task.spawn(function() 
+                    task.wait(0.3) 
+                    humanoid:MoveTo(walkToPosition) 
+                end)
+            end
+        end
+    end
+end)
